@@ -1,0 +1,5 @@
+tox
+pytest
+pip-tools
+mypy
+black
