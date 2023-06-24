@@ -28,7 +28,7 @@ class Era5Stack(Stack):
             timeout=Duration.seconds(900),
             runtime=_lambda.Runtime.PYTHON_3_10,
             code=_lambda.Code.from_asset(
-                "app/handler/download",
+                "app/download",
                 bundling={
                     "image": _lambda.Runtime.PYTHON_3_10.bundling_image,
                     "command": [
@@ -38,7 +38,7 @@ class Era5Stack(Stack):
                     ],
                 },
             ),
-            handler="download_era5.lambda_handler",
+            handler="handler.download_era5.lambda_handler",
             environment={
                 "CDSAPI_KEY": cds_key.string_value,
                 "CDSAPI_URL": "https://cds.climate.copernicus.eu/api/v2",
@@ -49,60 +49,83 @@ class Era5Stack(Stack):
             self,
             "checkFile",
             runtime=_lambda.Runtime.PYTHON_3_10,
-            code=_lambda.Code.from_asset("app/handler/checkfile"),
-            handler="check_file.lambda_handler",
+            code=_lambda.Code.from_asset("app/checkfile"),
+            handler="handler.check_file.lambda_handler",
         )
         process_file = _lambda.Function(
             self,
             "processFile",
             runtime=_lambda.Runtime.PYTHON_3_10,
-            code=_lambda.Code.from_asset("app/handler/process"),
-            handler="process_file.lambda_handler",
+            code=_lambda.Code.from_asset("app/process"),
+            handler="handler.process_file.lambda_handler",
         )
 
         # SFN
+        check_file_fail_state = sfn.Fail(
+            self, "checkFileFail", comment="Something went wrong checking if file exists!"
+        )
+        download_file_fail_state = sfn.Fail(
+            self, "downloadFileFail", comment="Something went wrong while downloading!"
+        )
+        check_file_success_state = sfn.Succeed(
+            self, "fileSuccess", comment="File exist"
+        )
+        download_file_succes_state = sfn.Succeed(
+            self, "downloadSuccess", comment="Download success"
+        )
         check_file_task = tasks.LambdaInvoke(
             self,
             "Era5StackCheckFile",
             lambda_function=check_file,
-            output_path="$.Payload",
+            payload=sfn.TaskInput.from_object(
+                {
+                    "date": sfn.JsonPath.string_at("$.date"),
+                    "hour": sfn.JsonPath.string_at("$.hour"),
+                }
+            ),
+            result_path="$.CheckFile",
+            retry_on_service_exceptions=True,
         )
+
         download_era5_task = tasks.LambdaInvoke(
             self,
             "era5StackDownloadFile",
             lambda_function=download_era5,
-            output_path="$.Payload",
-            input_path="$.body",
+            result_path="$.DownloadERA5",
+            retry_on_service_exceptions=True,
+            payload=sfn.TaskInput.from_object(
+                {
+                    "date": sfn.JsonPath.string_at("$.date"),
+                    "hour": sfn.JsonPath.string_at("$.hour"),
+                }
+            ),
         )
 
         download_era5_task.add_retry(
+            errors=["HTTPError", "Exception"],
             max_attempts=3,
-            backoff_rate=1,
-            interval=Duration.days(1),
+            backoff_rate=5,
+            interval=Duration.hours(1),
+        )
+        download_era5_task.add_catch(
+            download_file_fail_state,
+            errors=["HTTPError", "Exception"],
+            result_path="$.DownloadEra5",
         )
 
-        fail_state = sfn.Fail(self, "Fail", comment="Something went wrong!")
-        success_file_state = sfn.Succeed(self, "fileSuccess", comment="File exist")
-        success_download_state = sfn.Succeed(
-            self, "downloadSuccess", comment="Download success"
-        )
-
-        file_exist_state = sfn.Choice(self, "fileExistChoice")
-        file_exist_state.when(
-            sfn.Condition.boolean_equals("$.body.exists", False),
+        check_file_task.add_catch(
             download_era5_task,
+            errors=["ClientError"],
+            result_path="$.CheckFile",
         )
-        file_exist_state.otherwise(success_file_state)
-
-        download_ok_state = sfn.Choice(self, "DownloadOkState")
-        download_ok_state.when(
-            sfn.Condition.string_equals("$.body.status", "success"),
-            success_download_state,
+        check_file_task.add_catch(
+            check_file_fail_state,
+            errors=["ValueError"],
+            result_path="$.CheckFile",
         )
-        download_ok_state.otherwise(fail_state)
 
-        check_file_task.next(file_exist_state)
-        download_era5_task.next(download_ok_state)
+        check_file_task.next(check_file_success_state)
+        download_era5_task.next(download_file_succes_state)
 
         sfn.StateMachine(
             self,
