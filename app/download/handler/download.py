@@ -61,7 +61,7 @@ def get_dataset_and_settings(levtype: str, date: str, hour: str):
     return dataset, settings
 
 
-def download_data(date: str, levtype: str, hour: str, time_out: int) -> Dict[str, Any]:
+def download_data(date: str, levtype: str, hour: str) -> Dict[str, Any]:
     s3_client = boto3.client("s3")
 
     dataset, settings = get_dataset_and_settings(levtype, date, hour)
@@ -74,7 +74,7 @@ def download_data(date: str, levtype: str, hour: str, time_out: int) -> Dict[str
     dt = datetime.date.fromisoformat(date)
     target_dir = f"{dt.year}/{dt.month:02}/"
     with tempfile.NamedTemporaryFile() as f:
-        server = cdsapi.Client(progress=False, timeout=time_out)
+        server = cdsapi.Client(progress=False, sleep_max=20)
         request = server.retrieve(
             dataset,
             settings,

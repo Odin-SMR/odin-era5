@@ -1,4 +1,6 @@
 import datetime
+import json
+
 import boto3
 
 
@@ -8,7 +10,7 @@ def find_arn():
     for i in results["stateMachines"]:
         if i["name"] == "Era5StateMachine":
             return i["stateMachineArn"]
-    return None
+    return "None"
 
 
 def lambda_handler(event, context):
@@ -33,7 +35,7 @@ def lambda_handler(event, context):
 
         response = sfn.start_execution(
             stateMachineArn=state_machine_arn,
-            input=input_data,
+            input=json.dumps(input_data),
         )
 
     return {

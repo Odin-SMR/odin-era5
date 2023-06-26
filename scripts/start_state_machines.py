@@ -4,19 +4,17 @@ import boto3
 import json
 
 
-def find_arn():
+def find_arn() -> str:
     client = boto3.client("stepfunctions")
     results = client.list_state_machines()
-    print(results)
     for i in results["stateMachines"]:
         if i["name"] == "Era5StateMachine":
-            print("test: " , i["stateMachineArn"])
             return i["stateMachineArn"]
-    return None
+    return "None"
 
 
 if __name__ == "__main__":
-    current_date = datetime.date(2022, 9, 25)
+    current_date = datetime.date(2023, 1, 1)
     end_date = datetime.date.today() - datetime.timedelta(days=4)
 
     state_machine_arn = find_arn()
@@ -37,5 +35,6 @@ if __name__ == "__main__":
             response = sfn.start_execution(
                 stateMachineArn=state_machine_arn,
                 input=input_data,
+                name=f"{current_date}T{hour}-V3"
             )
         current_date = current_date + datetime.timedelta(days=1)

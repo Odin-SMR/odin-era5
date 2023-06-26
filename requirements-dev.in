@@ -4,3 +4,4 @@ pip-tools
 mypy
 black
 boto3-stubs[essential, stepfunctions]
+types-requests

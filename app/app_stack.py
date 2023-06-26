@@ -25,7 +25,7 @@ class Era5Stack(Stack):
         download_era5 = _lambda.Function(
             self,
             "downloadERA5",
-            timeout=Duration.seconds(900),
+            timeout=Duration.minutes(15),
             runtime=_lambda.Runtime.PYTHON_3_10,
             code=_lambda.Code.from_asset(
                 "app/download",
@@ -51,6 +51,7 @@ class Era5Stack(Stack):
             runtime=_lambda.Runtime.PYTHON_3_10,
             code=_lambda.Code.from_asset("app/checkfile"),
             handler="handler.check_file.lambda_handler",
+            timeout=Duration.seconds(10),
         )
         process_file = _lambda.Function(
             self,
@@ -62,13 +63,15 @@ class Era5Stack(Stack):
 
         # SFN
         check_file_fail_state = sfn.Fail(
-            self, "checkFileFail", comment="Something went wrong checking if file exists!"
-        )
-        download_file_fail_state = sfn.Fail(
-            self, "downloadFileFail", comment="Something went wrong while downloading!"
+            self,
+            "checkFileFail",
+            comment="Something went wrong checking if file exists!",
         )
         check_file_success_state = sfn.Succeed(
             self, "fileSuccess", comment="File exist"
+        )
+        download_file_fail_state = sfn.Fail(
+            self, "downloadFileFail", comment="Something went wrong while downloading!"
         )
         download_file_succes_state = sfn.Succeed(
             self, "downloadSuccess", comment="Download success"
@@ -102,30 +105,44 @@ class Era5Stack(Stack):
         )
 
         download_era5_task.add_retry(
-            errors=["HTTPError", "Exception"],
+            errors=["CDSAPITooManyRequests"],
             max_attempts=3,
-            backoff_rate=5,
-            interval=Duration.hours(1),
+            backoff_rate=2,
+            interval=Duration.minutes(15),
         )
-        download_era5_task.add_catch(
-            download_file_fail_state,
-            errors=["HTTPError", "Exception"],
-            result_path="$.DownloadEra5",
+        download_era5_task.add_retry(
+            errors=["CDSAPINotAvailableYet"],
+            max_attempts=3,
+            backoff_rate=1,
+            interval=Duration.days(1),
         )
-
-        check_file_task.add_catch(
+        download_era5_task.add_retry(
+            errors=["States.ALL"],
+            max_attempts=3,
+            backoff_rate=2,
+            interval=Duration.minutes(30),
+        )
+        checkfile_exists_state = sfn.Choice(
+            self,
+            "checkFileExist",
+        )
+        check_file_task.next(checkfile_exists_state)
+        checkfile_exists_state.when(
+            sfn.Condition.number_equals("$.CheckFile.Payload.StatusCode", 200),
+            check_file_success_state,
+        )
+        checkfile_exists_state.when(
+            sfn.Condition.number_equals("$.CheckFile.Payload.StatusCode", 404),
             download_era5_task,
-            errors=["ClientError"],
-            result_path="$.CheckFile",
         )
-        check_file_task.add_catch(
-            check_file_fail_state,
-            errors=["ValueError"],
-            result_path="$.CheckFile",
+        checkfile_exists_state.otherwise(check_file_fail_state)
+        download_era5_ok_state = sfn.Choice(self, "downloadOKState")
+        download_era5_task.next(download_era5_ok_state)
+        download_era5_ok_state.when(
+            sfn.Condition.string_equals("$.DownloadERA5.Payload.state", "completed"),
+            download_file_succes_state,
         )
-
-        check_file_task.next(check_file_success_state)
-        download_era5_task.next(download_file_succes_state)
+        download_era5_ok_state.otherwise(download_file_fail_state)
 
         sfn.StateMachine(
             self,
