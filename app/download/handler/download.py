@@ -1,10 +1,11 @@
 #!/usr/bin/env python3.8
 
-import tempfile
 import datetime
+import tempfile
 from typing import Any, Dict
-import cdsapi  # type: ignore
+
 import boto3
+import cdsapi  # type: ignore
 
 BUCKET = "odin-era5"
 

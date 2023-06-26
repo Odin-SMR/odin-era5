@@ -33,7 +33,7 @@ def lambda_handler(event, context):
         if error:
             code = error.get("Code")
             msg = error.get("Message")
-            if code=="404":
+            if code == "404":
                 return {
                     "StatusCode": int(code),
                     "Message": msg,

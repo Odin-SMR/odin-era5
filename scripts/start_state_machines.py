@@ -1,7 +1,8 @@
 #!/bin/env python3
 import datetime
-import boto3
 import json
+
+import boto3
 
 
 def find_arn() -> str:
@@ -35,6 +36,6 @@ if __name__ == "__main__":
             response = sfn.start_execution(
                 stateMachineArn=state_machine_arn,
                 input=input_data,
-                name=f"{current_date}T{hour}-V3"
+                name=f"{current_date}T{hour}-V3",
             )
         current_date = current_date + datetime.timedelta(days=1)
