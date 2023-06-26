@@ -16,7 +16,7 @@ def find_arn():
 def lambda_handler(event, context):
     # Calculate the date of five days ago
     current_date = datetime.date.today()
-    five_days_ago = current_date - datetime.timedelta(days=5)
+    six_days_ago = current_date - datetime.timedelta(days=6)
 
     state_machine_arn = find_arn()
 
@@ -31,7 +31,7 @@ def lambda_handler(event, context):
     sfn = boto3.client("stepfunctions")
 
     for hour in hours:
-        input_data = {"date": five_days_ago.isoformat(), "hour": hour}
+        input_data = {"date": six_days_ago.isoformat(), "hour": hour}
 
         response = sfn.start_execution(
             stateMachineArn=state_machine_arn,
