@@ -37,9 +37,9 @@ class Era5Stack(Stack):
         )
         statement = aws_iam.PolicyStatement(
             actions=["ssm:GetParametersByPath"],
-            resources=["arn:aws:ssm:eu-north-1:*:/odin/cdsapi/*"]
+            resources=["arn:aws:ssm:eu-north-1:*:/odin/cdsapi/*"],
         )
-        download_era5.add_to_role_policy(statement)        
+        download_era5.add_to_role_policy(statement)
 
         check_file = _lambda.Function(
             self,

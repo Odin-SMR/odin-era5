@@ -14,15 +14,12 @@ class CDSAPITooManyRequests(RuntimeError):
 
 
 def lambda_handler(event, context):
-    ssm = boto3.client('ssm', region_name='eu-north-1')
+    ssm = boto3.client("ssm", region_name="eu-north-1")
 
     # Get the parameter
-    key = ssm.get_parameter(
-        Name='/odin/cdsapi/key',
-        WithDecryption=True
-    )
+    key = ssm.get_parameter(Name="/odin/cdsapi/key", WithDecryption=True)
     url = ssm.get_parameter(
-        Name='/odin/cdsapi/url',
+        Name="/odin/cdsapi/url",
     )
     environ["CDSAPI_KEY"] = key["Parameter"]["Value"]
     environ["CDSAPI_URL"] = url["Parameter"]["Value"]
