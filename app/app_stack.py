@@ -1,9 +1,9 @@
 from aws_cdk import Duration, Stack
 from aws_cdk import aws_events as events
 from aws_cdk import aws_events_targets as targets
+from aws_cdk import aws_iam
 from aws_cdk import aws_lambda as _lambda
 from aws_cdk import aws_s3 as s3
-from aws_cdk import aws_ssm
 from aws_cdk import aws_stepfunctions as sfn
 from aws_cdk import aws_stepfunctions_tasks as tasks
 from constructs import Construct
@@ -16,11 +16,6 @@ class Era5Stack(Stack):
         super().__init__(scope, id, **kwargs)
 
         era5_bucket = s3.Bucket.from_bucket_name(self, "Era5Bucket", BUCKET)
-        cds_key = aws_ssm.StringParameter.from_string_parameter_name(
-            self,
-            "cdsKey",
-            string_parameter_name="/odin/cdsapi",
-        )
 
         download_era5 = _lambda.Function(
             self,
@@ -39,11 +34,12 @@ class Era5Stack(Stack):
                 },
             ),
             handler="handler.download_era5.lambda_handler",
-            environment={
-                "CDSAPI_KEY": cds_key.string_value,
-                "CDSAPI_URL": "https://cds.climate.copernicus.eu/api/v2",
-            },
         )
+        statement = aws_iam.PolicyStatement(
+            actions=["ssm:GetParametersByPath"],
+            resources=["arn:aws:ssm:eu-north-1:*:/odin/cdsapi/*"]
+        )
+        download_era5.add_to_role_policy(statement)        
 
         check_file = _lambda.Function(
             self,
