@@ -8,7 +8,7 @@ attrs==23.1.0
     # via
     #   cattrs
     #   jsii
-aws-cdk-asset-awscli-v1==2.2.198
+aws-cdk-asset-awscli-v1==2.2.199
     # via aws-cdk-lib
 aws-cdk-asset-kubectl-v20==2.1.2
     # via aws-cdk-lib
@@ -18,10 +18,14 @@ aws-cdk-lib==2.85.0
     # via -r requirements.in
 cattrs==23.1.2
     # via jsii
-constructs==10.2.58
+constructs==10.2.61
     # via aws-cdk-lib
 exceptiongroup==1.1.1
     # via cattrs
+gitdb==4.0.10
+    # via gitpython
+gitpython==3.1.31
+    # via -r requirements.in
 importlib-resources==5.12.0
     # via jsii
 jsii==1.84.0
@@ -43,6 +47,8 @@ python-dateutil==2.8.2
     # via jsii
 six==1.16.0
     # via python-dateutil
+smmap==5.0.0
+    # via gitdb
 typeguard==2.13.3
     # via
     #   aws-cdk-asset-awscli-v1

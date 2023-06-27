@@ -1,22 +1,19 @@
 #!/bin/env python3
+import argparse
 import json
-import os
-import subprocess
 import sys
+from datetime import date, timedelta
+
+from git.repo import Repo
 
 
 def get_git_root() -> str:
-    path = os.getcwd()
-    git_root = subprocess.check_output(
-        ["git", "rev-parse", "--show-toplevel"], cwd=path
-    )
-    return git_root.decode("utf-8").strip()
+    repo = Repo(".", search_parent_directories=True)
+    return repo.git.rev_parse("--show-toplevel")
 
 
 sys.path.insert(0, get_git_root())
 
-import argparse
-from datetime import date, timedelta
 
 from app.process.handler.process_file import lambda_handler
 
@@ -40,7 +37,7 @@ def main() -> None:
     args = parser.parse_args()
     current_date: date = args.start
     while current_date <= args.end:
-        lambda_handler(json.dumps({"date": current_date}), None)
+        lambda_handler({"date": current_date}, None)
         current_date = current_date + timedelta(days=1)
 
 
