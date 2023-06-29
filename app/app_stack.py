@@ -21,7 +21,7 @@ class Era5Stack(Stack):
             "cdsKey",
             string_parameter_name="/odin/cdsapi",
         )
-
+        # Lambda
         download_era5 = _lambda.Function(
             self,
             "downloadERA5",
@@ -53,6 +53,22 @@ class Era5Stack(Stack):
             handler="handler.check_file.lambda_handler",
             timeout=Duration.seconds(10),
         )
+        send_request = _lambda.Function(
+            self,
+            "sendRequest",
+            runtime=_lambda.Runtime.PYTHON_3_10,
+            code=_lambda.Code.from_asset("app/sendrequest"),
+            handler="handler.send_request.lambda_handler",
+            timeout=Duration.seconds(10),
+        )
+        check_result = _lambda.Function(
+            self,
+            "checkResult",
+            runtime=_lambda.Runtime.PYTHON_3_10,
+            code=_lambda.Code.from_asset("app/checkresult"),
+            handler="handler.check_result.lambda_handler",
+            timeout=Duration.seconds(10),
+        )
         process_file = _lambda.Function(
             self,
             "processFile",
@@ -62,19 +78,14 @@ class Era5Stack(Stack):
         )
 
         # SFN
-        check_file_fail_state = sfn.Fail(
-            self,
-            "checkFileFail",
-            comment="Something went wrong checking if file exists!",
+
+        send_request_task = tasks.LambdaInvoke(
+            "sendRequest",
+            lambda_function=send_request,
         )
-        check_file_success_state = sfn.Succeed(
-            self, "fileSuccess", comment="File exist"
-        )
-        download_file_fail_state = sfn.Fail(
-            self, "downloadFileFail", comment="Something went wrong while downloading!"
-        )
-        download_file_succes_state = sfn.Succeed(
-            self, "downloadSuccess", comment="Download success"
+        check_result_task = tasks.LambdaInvoke(
+            "checkResult",
+            lambda_function=check_result,
         )
         check_file_task = tasks.LambdaInvoke(
             self,
@@ -122,6 +133,16 @@ class Era5Stack(Stack):
             backoff_rate=2,
             interval=Duration.minutes(30),
         )
+
+        # Logic flow & State
+        check_file_fail_state = sfn.Fail(
+            self,
+            "checkFileFail",
+            comment="Something went wrong checking if file exists!",
+        )
+        check_file_success_state = sfn.Succeed(
+            self, "fileSuccess", comment="File exist"
+        )
         checkfile_exists_state = sfn.Choice(
             self,
             "checkFileExist",
@@ -133,9 +154,36 @@ class Era5Stack(Stack):
         )
         checkfile_exists_state.when(
             sfn.Condition.number_equals("$.CheckFile.Payload.StatusCode", 404),
-            download_era5_task,
+            send_request_task,
         )
         checkfile_exists_state.otherwise(check_file_fail_state)
+
+        wait_state = sfn.Wait(self, "Wait", time=Duration.minutes(1))
+        send_request_task.next(wait_state)
+        wait_state.next(check_result_task)
+
+        check_result_choice_state = sfn.Choice(self, "checkResultChoiceState")
+        check_result_choice_state.when(
+            sfn.Condition.string_equals("$.CheckResult.Payload.state", "queued"),
+            wait_state,
+        )
+        check_result_choice_state.when(
+            sfn.Condition.string_equals("$.CheckResult.Payload.state", "completed"),
+            download_era5,
+        )
+        check_result_choice_state.when(
+            sfn.Condition.string_equals("$.CheckResult.Payload.state", "processing"),
+            wait_state,
+        )
+        download_file_fail_state = sfn.Fail(
+            self, "downloadFileFail", comment="Something went wrong while downloading!"
+        )
+        check_result_choice_state.otherwise(download_file_fail_state)
+
+        download_file_succes_state = sfn.Succeed(
+            self, "downloadSuccess", comment="Download success"
+        )
+
         download_era5_ok_state = sfn.Choice(self, "downloadOKState")
         download_era5_task.next(download_era5_ok_state)
         download_era5_ok_state.when(
