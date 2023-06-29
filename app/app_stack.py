@@ -166,6 +166,7 @@ class Era5Stack(Stack):
         wait_state.next(check_result_task)
 
         check_result_choice_state = sfn.Choice(self, "checkResultChoiceState")
+        check_result_task.next(check_result_choice_state)
         check_result_choice_state.when(
             sfn.Condition.string_equals("$.CheckResult.Payload.state", "queued"),
             wait_state,
