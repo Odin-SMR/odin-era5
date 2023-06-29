@@ -57,6 +57,7 @@ class Era5Stack(Stack):
             handler="handler.send_request.lambda_handler",
             timeout=Duration.seconds(10),
         )
+        send_request.add_to_role_policy(statement)
         check_result = _lambda.Function(
             self,
             "checkResult",
@@ -65,6 +66,7 @@ class Era5Stack(Stack):
             handler="handler.check_result.lambda_handler",
             timeout=Duration.seconds(10),
         )
+        check_result.add_to_role_policy(statement)
         process_file = _lambda.Function(
             self,
             "processFile",
@@ -76,11 +78,13 @@ class Era5Stack(Stack):
         # SFN
 
         send_request_task = tasks.LambdaInvoke(
-            "sendRequest",
+            self,
+            "sendRequestTask",
             lambda_function=send_request,
         )
         check_result_task = tasks.LambdaInvoke(
-            "checkResult",
+            self,
+            "checkResultTask",
             lambda_function=check_result,
         )
         check_file_task = tasks.LambdaInvoke(
@@ -154,7 +158,10 @@ class Era5Stack(Stack):
         )
         checkfile_exists_state.otherwise(check_file_fail_state)
 
-        wait_state = sfn.Wait(self, "Wait", time=Duration.minutes(1))
+        wait_state = sfn.Wait(
+            self, "Wait", time=sfn.WaitTime.duration(Duration.seconds(10))
+        )
+
         send_request_task.next(wait_state)
         wait_state.next(check_result_task)
 
@@ -165,7 +172,7 @@ class Era5Stack(Stack):
         )
         check_result_choice_state.when(
             sfn.Condition.string_equals("$.CheckResult.Payload.state", "completed"),
-            download_era5,
+            download_era5_task,
         )
         check_result_choice_state.when(
             sfn.Condition.string_equals("$.CheckResult.Payload.state", "processing"),
