@@ -4,9 +4,9 @@
 #
 #    pip-compile --output-file=app/download/requirements.txt --resolver=backtracking requirements-stack.in
 #
-boto3==1.26.161
+boto3==1.26.163
     # via -r requirements-stack.in
-botocore==1.29.161
+botocore==1.29.163
     # via
     #   boto3
     #   s3transfer

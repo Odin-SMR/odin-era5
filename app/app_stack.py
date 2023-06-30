@@ -17,7 +17,7 @@ class Era5Stack(Stack):
 
         era5_bucket = s3.Bucket.from_bucket_name(self, "Era5Bucket", BUCKET)
 
-        download_era5 = _lambda.Function(
+        download_era5: _lambda.IFunction = _lambda.Function(
             self,
             "downloadERA5",
             timeout=Duration.minutes(15),
@@ -40,7 +40,13 @@ class Era5Stack(Stack):
             resources=["arn:aws:ssm:eu-north-1:*:/odin/cdsapi/*"],
         )
         download_era5.add_to_role_policy(statement)
+        download_era5.role.attach_inline_policy
 
+        rac_lambda.add_to_role_policy(iam.PolicyStatement(
+            effect=iam.Effect.ALLOW,
+            actions=["ssm:GetParameter"],
+            resources=[f"arn:aws:ssm:*:*:parameter{config_ssm_name}"]
+            
         check_file = _lambda.Function(
             self,
             "checkFile",
