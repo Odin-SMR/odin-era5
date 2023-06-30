@@ -1,29 +1,18 @@
-from os import environ
-
-
 import datetime
-import cdsapi
 import tempfile
+
 import boto3
+from cdsapi.api import Client, Result
 
 BUCKET = "odin-era5"
 
 
 def lambda_handler(event, context):
-    ssm = boto3.client("ssm", region_name="eu-north-1")
-
-    # Get the parameter
-    key = ssm.get_parameter(Name="/odin/cdsapi/key", WithDecryption=True)
-    url = ssm.get_parameter(
-        Name="/odin/cdsapi/url",
-    )
-    environ["CDSAPI_KEY"] = key["Parameter"]["Value"]
-    environ["CDSAPI_URL"] = url["Parameter"]["Value"]
     s3_client = boto3.client("s3")
-    client = cdsapi.Client(progress=False, wait_until_complete=False)
-    result = cdsapi.Result(client, event["reply"])
+    client = Client(progress=False, wait_until_complete=False)
+    result = Result(client, event["reply"])
     with tempfile.NamedTemporaryFile() as f:
-        downloaded_target = result.download(target=f.name)
+        result.download(target=f.name)
         date = event["date"]
         hour = event["hour"]
         dt = datetime.date.fromisoformat(date)
@@ -32,4 +21,4 @@ def lambda_handler(event, context):
         target_file = f"ea_pl_{date}-{hour}.nc"
         s3_client.upload_fileobj(f, BUCKET, target_dir + target_file)
 
-    return downloaded_target
+    return {"StatusCode": 200}

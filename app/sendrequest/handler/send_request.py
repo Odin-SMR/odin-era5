@@ -1,10 +1,8 @@
 #!/usr/bin/env python3.8
 
 import datetime
-import os
 from typing import Any, Dict
 
-import boto3
 import cdsapi  # type: ignore
 
 BUCKET = "odin-era5"
@@ -83,15 +81,6 @@ def download_data(date: str, levtype: str, hour: str) -> Dict[str, Any]:
 
 
 def lambda_handler(event, context):
-    ssm = boto3.client("ssm", region_name="eu-north-1")
-
-    # Get the parameter
-    key = ssm.get_parameter(Name="/odin/cdsapi/key", WithDecryption=True)
-    url = ssm.get_parameter(
-        Name="/odin/cdsapi/url",
-    )
-    os.environ["CDSAPI_KEY"] = key["Parameter"]["Value"]
-    os.environ["CDSAPI_URL"] = url["Parameter"]["Value"]
     try:
         result = download_data(event["date"], "pl", event["hour"])
         return result

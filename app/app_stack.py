@@ -4,6 +4,7 @@ from aws_cdk import aws_events_targets as targets
 from aws_cdk import aws_iam
 from aws_cdk import aws_lambda as _lambda
 from aws_cdk import aws_s3 as s3
+from aws_cdk import aws_ssm
 from aws_cdk import aws_stepfunctions as sfn
 from aws_cdk import aws_stepfunctions_tasks as tasks
 from constructs import Construct
@@ -16,6 +17,16 @@ class Era5Stack(Stack):
         super().__init__(scope, id, **kwargs)
 
         era5_bucket = s3.Bucket.from_bucket_name(self, "Era5Bucket", BUCKET)
+        cds_key = aws_ssm.StringParameter.from_string_parameter_name(
+            self,
+            "cdsKey",
+            string_parameter_name="/odin/cdsapi/key2",
+        )
+        cds_url = aws_ssm.StringParameter.from_string_parameter_name(
+            self,
+            "cdsUrl",
+            string_parameter_name="/odin/cdsapi/url",
+        )
 
         download_era5 = _lambda.Function(
             self,
@@ -34,12 +45,11 @@ class Era5Stack(Stack):
                 },
             ),
             handler="handler.download_era5.lambda_handler",
+            environment={
+                "CDSAPI_KEY": cds_key.string_value,
+                "CDSAPI_URL": cds_url.string_value,
+            },
         )
-        statement = aws_iam.PolicyStatement(
-            actions=["ssm:GetParameter"],
-            resources=["arn:aws:ssm:eu-north-1:991049544436:parameter/odin/cdsapi/*"],
-        )
-        download_era5.add_to_role_policy(statement)
 
         check_file = _lambda.Function(
             self,
@@ -47,6 +57,10 @@ class Era5Stack(Stack):
             runtime=_lambda.Runtime.PYTHON_3_10,
             code=_lambda.Code.from_asset("app/checkfile"),
             handler="handler.check_file.lambda_handler",
+            environment={
+                "CDSAPI_KEY": cds_key.string_value,
+                "CDSAPI_URL": cds_url.string_value,
+            },
             timeout=Duration.seconds(10),
         )
         send_request = _lambda.Function(
@@ -65,9 +79,12 @@ class Era5Stack(Stack):
                 },
             ),
             handler="handler.send_request.lambda_handler",
+            environment={
+                "CDSAPI_KEY": cds_key.string_value,
+                "CDSAPI_URL": cds_url.string_value,
+            },
             timeout=Duration.seconds(10),
         )
-        send_request.add_to_role_policy(statement)
         check_result = _lambda.Function(
             self,
             "checkResult",
@@ -84,15 +101,22 @@ class Era5Stack(Stack):
                 },
             ),
             handler="handler.check_result.lambda_handler",
+            environment={
+                "CDSAPI_KEY": cds_key.string_value,
+                "CDSAPI_URL": cds_url.string_value,
+            },
             timeout=Duration.seconds(10),
         )
-        check_result.add_to_role_policy(statement)
         process_file = _lambda.Function(
             self,
             "processFile",
             runtime=_lambda.Runtime.PYTHON_3_10,
             code=_lambda.Code.from_asset("app/process"),
             handler="handler.process_file.lambda_handler",
+            environment={
+                "CDSAPI_KEY": cds_key.string_value,
+                "CDSAPI_URL": cds_url.string_value,
+            },
         )
 
         # SFN
@@ -206,7 +230,7 @@ class Era5Stack(Stack):
             download_era5_task,
         )
         check_result_choice_state.when(
-            sfn.Condition.string_equals("$.CheckResult.Payload.state", "processing"),
+            sfn.Condition.string_equals("$.CheckResult.Payload.state", "running"),
             wait_state,
         )
         download_file_fail_state = sfn.Fail(
@@ -221,7 +245,7 @@ class Era5Stack(Stack):
         download_era5_ok_state = sfn.Choice(self, "downloadOKState")
         download_era5_task.next(download_era5_ok_state)
         download_era5_ok_state.when(
-            sfn.Condition.string_equals("$.DownloadERA5.Payload.state", "completed"),
+            sfn.Condition.number_equals("$.DownloadERA5.Payload.StatusCode", 200),
             download_file_succes_state,
         )
         download_era5_ok_state.otherwise(download_file_fail_state)
