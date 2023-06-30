@@ -36,8 +36,8 @@ class Era5Stack(Stack):
             handler="handler.download_era5.lambda_handler",
         )
         statement = aws_iam.PolicyStatement(
-            actions=["ssm:GetParametersByPath"],
-            resources=["arn:aws:ssm:eu-north-1:*:/odin/cdsapi/*"],
+            actions=["ssm:GetParameter"],
+            resources=["arn:aws:ssm:eu-north-1:991049544436:parameter/odin/cdsapi/*"],
         )
         download_era5.add_to_role_policy(statement)
 
@@ -53,7 +53,17 @@ class Era5Stack(Stack):
             self,
             "sendRequest",
             runtime=_lambda.Runtime.PYTHON_3_10,
-            code=_lambda.Code.from_asset("app/sendrequest"),
+            code=_lambda.Code.from_asset(
+                "app/sendrequest",
+                bundling={
+                    "image": _lambda.Runtime.PYTHON_3_10.bundling_image,
+                    "command": [
+                        "bash",
+                        "-c",
+                        "pip install -r requirements.txt -t /asset-output && cp -au . /asset-output",
+                    ],
+                },
+            ),
             handler="handler.send_request.lambda_handler",
             timeout=Duration.seconds(10),
         )
@@ -62,7 +72,17 @@ class Era5Stack(Stack):
             self,
             "checkResult",
             runtime=_lambda.Runtime.PYTHON_3_10,
-            code=_lambda.Code.from_asset("app/checkresult"),
+            code=_lambda.Code.from_asset(
+                "app/checkresult",
+                bundling={
+                    "image": _lambda.Runtime.PYTHON_3_10.bundling_image,
+                    "command": [
+                        "bash",
+                        "-c",
+                        "pip install -r requirements.txt -t /asset-output && cp -au . /asset-output",
+                    ],
+                },
+            ),
             handler="handler.check_result.lambda_handler",
             timeout=Duration.seconds(10),
         )
@@ -81,11 +101,20 @@ class Era5Stack(Stack):
             self,
             "sendRequestTask",
             lambda_function=send_request,
+            payload=sfn.TaskInput.from_object(
+                {
+                    "date": sfn.JsonPath.string_at("$.date"),
+                    "hour": sfn.JsonPath.string_at("$.hour"),
+                }
+            ),
+            result_path="$.SendRequest",
         )
         check_result_task = tasks.LambdaInvoke(
             self,
             "checkResultTask",
             lambda_function=check_result,
+            payload=sfn.TaskInput.from_json_path_at("$.SendRequest.Payload"),
+            result_path="$.CheckResult",
         )
         check_file_task = tasks.LambdaInvoke(
             self,
@@ -111,6 +140,7 @@ class Era5Stack(Stack):
                 {
                     "date": sfn.JsonPath.string_at("$.date"),
                     "hour": sfn.JsonPath.string_at("$.hour"),
+                    "reply": sfn.JsonPath.object_at("$.CheckResult.Payload"),
                 }
             ),
         )

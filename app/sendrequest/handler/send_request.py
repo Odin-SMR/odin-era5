@@ -1,8 +1,7 @@
 #!/usr/bin/env python3.8
 
 import datetime
-from os import environ
-import tempfile
+import os
 from typing import Any, Dict
 
 import boto3
@@ -91,8 +90,8 @@ def lambda_handler(event, context):
     url = ssm.get_parameter(
         Name="/odin/cdsapi/url",
     )
-    environ["CDSAPI_KEY"] = key["Parameter"]["Value"]
-    environ["CDSAPI_URL"] = url["Parameter"]["Value"]
+    os.environ["CDSAPI_KEY"] = key["Parameter"]["Value"]
+    os.environ["CDSAPI_URL"] = url["Parameter"]["Value"]
     try:
         result = download_data(event["date"], "pl", event["hour"])
         return result
