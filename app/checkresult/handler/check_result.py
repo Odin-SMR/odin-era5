@@ -1,4 +1,4 @@
-from cdsapi.api import Result, Client
+from cdsapi.api import Result, Client  # type: ignore
 
 
 def lambda_handler(event, context):

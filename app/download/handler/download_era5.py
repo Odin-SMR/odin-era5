@@ -2,7 +2,7 @@ import datetime
 import tempfile
 
 import boto3
-from cdsapi.api import Client, Result
+from cdsapi.api import Client, Result  # type: ignore
 
 BUCKET = "odin-era5"
 
