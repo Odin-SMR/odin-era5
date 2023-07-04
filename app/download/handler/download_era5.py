@@ -1,34 +1,24 @@
-from os import environ
+import datetime
+import tempfile
 
 import boto3
+from cdsapi.api import Client, Result  # type: ignore
 
-from .download import download_data
-
-
-class CDSAPINotAvailableYet(RuntimeError):
-    pass
-
-
-class CDSAPITooManyRequests(RuntimeError):
-    pass
+BUCKET = "odin-era5"
 
 
 def lambda_handler(event, context):
-    ssm = boto3.client("ssm", region_name="eu-north-1")
+    s3_client = boto3.client("s3")
+    client = Client(progress=False, wait_until_complete=False)
+    result = Result(client, event["reply"])
+    with tempfile.NamedTemporaryFile() as f:
+        result.download(target=f.name)
+        date = event["date"]
+        hour = event["hour"]
+        dt = datetime.date.fromisoformat(date)
 
-    # Get the parameter
-    key = ssm.get_parameter(Name="/odin/cdsapi/key", WithDecryption=True)
-    url = ssm.get_parameter(
-        Name="/odin/cdsapi/url",
-    )
-    environ["CDSAPI_KEY"] = key["Parameter"]["Value"]
-    environ["CDSAPI_URL"] = url["Parameter"]["Value"]
-    try:
-        result = download_data(event["date"], "pl", event["hour"])
-        return result
-    except Exception as err:
-        if "too many" in str(err):
-            raise CDSAPITooManyRequests()
-        if "yet" in str(err):
-            raise CDSAPINotAvailableYet()
-        raise err
+        target_dir = f"{dt.year}/{dt.month:02}/"
+        target_file = f"ea_pl_{date}-{hour}.nc"
+        s3_client.upload_fileobj(f, BUCKET, target_dir + target_file)
+
+    return {"StatusCode": 200}
