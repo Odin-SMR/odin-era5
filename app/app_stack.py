@@ -43,6 +43,7 @@ class Era5Stack(Stack):
                     ],
                 },
             ),
+            memory_size=512,
             handler="handler.download_era5.lambda_handler",
             environment={
                 "CDSAPI_KEY": cds_key.string_value,
@@ -212,7 +213,7 @@ class Era5Stack(Stack):
         checkfile_exists_state.otherwise(check_file_fail_state)
 
         wait_state = sfn.Wait(
-            self, "Wait", time=sfn.WaitTime.duration(Duration.seconds(10))
+            self, "Wait", time=sfn.WaitTime.duration(Duration.seconds(30))
         )
 
         send_request_task.next(wait_state)
