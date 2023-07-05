@@ -17,17 +17,6 @@ class Era5Stack(Stack):
         super().__init__(scope, id, **kwargs)
 
         era5_bucket = s3.Bucket.from_bucket_name(self, "Era5Bucket", BUCKET)
-        role = iam.Role(self, "LambdaProcessRole", assumed_by=iam.ServicePrincipal)
-        role.add_to_policy(
-            iam.PolicyStatement(
-                actions=[
-                    "states:ListStateMachines",
-                    "states:DescribeStateMachine",
-                    "states:StartExecution",
-                ],
-                resources=["*"],
-            ),
-        )
         cds_key = aws_ssm.StringParameter.from_string_parameter_name(
             self,
             "cdsKey",
@@ -129,9 +118,16 @@ class Era5Stack(Stack):
                 "CDSAPI_KEY": cds_key.string_value,
                 "CDSAPI_URL": cds_url.string_value,
             },
-            role=role,
         )
-
+        process_file.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "states:ListStateMachines",
+                    "states:StartExecution",
+                ],
+                resources=["*"],
+            ),
+        )
         # SFN
 
         send_request_task = tasks.LambdaInvoke(
