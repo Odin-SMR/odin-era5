@@ -1,3 +1,4 @@
+-c ${CONSTRAINTS}
 tox
 pytest
 pip-tools
