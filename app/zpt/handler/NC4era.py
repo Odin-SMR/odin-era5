@@ -1,3 +1,5 @@
+# fmt: off
+# mypy: ignore-errors
 '''
 Created on Mar 12, 2009
 New version Oct 2014 - dicovered that geometric height was in the files
@@ -5,6 +7,8 @@ new version April 2015 - to use ERA interim or ERA5 files retreived
 using the ECMWF API
 @author: donal
 '''
+
+
 from itertools import product
 from netCDF4 import Dataset
 import numpy as np

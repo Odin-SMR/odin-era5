@@ -12,8 +12,14 @@ aws-cdk-lib==2.86.0
     # via -r requirements.in
 black==23.3.0
     # via -r requirements-dev.in
+boto3==1.27.0
+    # via -r requirements-dev.in
 boto3-stubs==1.27.0
     # via -r requirements-dev.in
+botocore==1.30.0
+    # via
+    #   boto3
+    #   s3transfer
 botocore-stubs==1.29.165
     # via boto3-stubs
 build==0.10.0
@@ -64,6 +70,10 @@ importlib-resources==5.12.0
     # via jsii
 iniconfig==2.0.0
     # via pytest
+jmespath==1.0.1
+    # via
+    #   boto3
+    #   botocore
 jsii==1.84.0
     # via
     #   aws-cdk-asset-awscli-v1
@@ -136,9 +146,13 @@ pyproject-hooks==1.0.0
 pytest==7.4.0
     # via -r requirements-dev.in
 python-dateutil==2.8.2
-    # via jsii
+    # via
+    #   botocore
+    #   jsii
 requests==2.31.0
     # via cdsapi
+s3transfer==0.6.1
+    # via boto3
 scipy==1.11.1
     # via -r app/zpt/requirements.in
 six==1.16.0
@@ -182,8 +196,10 @@ typing-extensions==4.7.1
     #   cattrs
     #   jsii
     #   mypy
-urllib3==2.0.3
-    # via requests
+urllib3==1.26.16
+    # via
+    #   botocore
+    #   requests
 virtualenv==20.23.1
     # via tox
 wheel==0.40.0

@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 #!/usr/bin/env python3.8
 # -*- coding: utf-8 -*-
 #
@@ -20,7 +21,8 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-#
+
+# fmt: off
 import numpy as np
 import nrlmsise00
 import sqlite3 as sqlite

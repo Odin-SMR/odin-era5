@@ -1,3 +1,5 @@
+# fmt: off
+# mypy: ignore-errors
 import os
 import re
 import datetime as DT
@@ -12,7 +14,6 @@ from simpleflock import SimpleFlock
 from . import msis90 as M90
 from .NC4era import NCera
 from .time_util import mjd2datetime, datetime2mjd
-
 
 AVOGADRO = 6.02282e23  # [mol^-1] aovogadros number
 Ro = 8.3143  # [J * mol^-1 * K^-1] ideal gas constant
