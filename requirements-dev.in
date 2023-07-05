@@ -1,5 +1,4 @@
 -c ${CONSTRAINTS}
--r requirements.in
 tox
 pytest
 pip-tools
