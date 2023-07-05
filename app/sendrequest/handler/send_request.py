@@ -1,13 +1,20 @@
 #!/usr/bin/env python3.8
 
 import datetime
-import tempfile
 from typing import Any, Dict
 
-import boto3
 import cdsapi  # type: ignore
 
 BUCKET = "odin-era5"
+
+
+class CDSAPINotAvailableYet(RuntimeError):
+    pass
+
+
+class CDSAPITooManyRequests(RuntimeError):
+    pass
+
 
 # command for retrieving parameters on pressure levels
 # Parameter id reference: http://apps.ecmwf.int/codes/grib/param-db
@@ -63,23 +70,23 @@ def get_dataset_and_settings(levtype: str, date: str, hour: str):
 
 
 def download_data(date: str, levtype: str, hour: str) -> Dict[str, Any]:
-    s3_client = boto3.client("s3")
-
     dataset, settings = get_dataset_and_settings(levtype, date, hour)
-    target_file = "{}_{}_{}-{}.nc".format(
-        settings["class"],
-        settings["levtype"],
-        date,
-        hour,
+
+    client = cdsapi.Client(progress=False, wait_until_complete=False)
+    result = client.retrieve(
+        dataset,
+        settings,
     )
-    dt = datetime.date.fromisoformat(date)
-    target_dir = f"{dt.year}/{dt.month:02}/"
-    with tempfile.NamedTemporaryFile() as f:
-        server = cdsapi.Client(progress=False, sleep_max=20)
-        request = server.retrieve(
-            dataset,
-            settings,
-            f.name,
-        )
-        s3_client.upload_fileobj(f, BUCKET, target_dir + target_file)
-    return request.reply
+    return result.reply
+
+
+def lambda_handler(event, context):
+    try:
+        result = download_data(event["date"], "pl", event["hour"])
+        return result
+    except Exception as err:
+        if "too many" in str(err):
+            raise CDSAPITooManyRequests()
+        if "yet" in str(err):
+            raise CDSAPINotAvailableYet()
+        raise err

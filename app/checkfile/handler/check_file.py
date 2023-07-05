@@ -19,6 +19,7 @@ def lambda_handler(event, context):
     date = datetime.date.fromisoformat(event["date"])
     hour = event["hour"]
     file_name = f"{date.year}/{date.month:02}/ea_pl_{date.isoformat()}-{hour}.nc"
+    # Reverse: if fail do nu'in else download
     try:
         request = s3.head_object(Bucket=BUCKET, Key=file_name)
         return {

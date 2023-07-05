@@ -16,6 +16,16 @@ class Era5Stack(Stack):
         super().__init__(scope, id, **kwargs)
 
         era5_bucket = s3.Bucket.from_bucket_name(self, "Era5Bucket", BUCKET)
+        cds_key = aws_ssm.StringParameter.from_string_parameter_name(
+            self,
+            "cdsKey",
+            string_parameter_name="/odin/cdsapi/key2",
+        )
+        cds_url = aws_ssm.StringParameter.from_string_parameter_name(
+            self,
+            "cdsUrl",
+            string_parameter_name="/odin/cdsapi/url",
+        )
 
         download_era5: _lambda.IFunction = _lambda.Function(
             self,
@@ -33,11 +43,12 @@ class Era5Stack(Stack):
                     ],
                 },
             ),
+            memory_size=512,
             handler="handler.download_era5.lambda_handler",
-        )
-        statement = aws_iam.PolicyStatement(
-            actions=["ssm:GetParametersByPath"],
-            resources=["arn:aws:ssm:eu-north-1:*:/odin/cdsapi/*"],
+            environment={
+                "CDSAPI_KEY": cds_key.string_value,
+                "CDSAPI_URL": cds_url.string_value,
+            },
         )
         download_era5.add_to_role_policy(statement)
         download_era5.role.attach_inline_policy
@@ -53,6 +64,54 @@ class Era5Stack(Stack):
             runtime=_lambda.Runtime.PYTHON_3_10,
             code=_lambda.Code.from_asset("app/checkfile"),
             handler="handler.check_file.lambda_handler",
+            environment={
+                "CDSAPI_KEY": cds_key.string_value,
+                "CDSAPI_URL": cds_url.string_value,
+            },
+            timeout=Duration.seconds(10),
+        )
+        send_request = _lambda.Function(
+            self,
+            "sendRequest",
+            runtime=_lambda.Runtime.PYTHON_3_10,
+            code=_lambda.Code.from_asset(
+                "app/sendrequest",
+                bundling={
+                    "image": _lambda.Runtime.PYTHON_3_10.bundling_image,
+                    "command": [
+                        "bash",
+                        "-c",
+                        "pip install -r requirements.txt -t /asset-output && cp -au . /asset-output",
+                    ],
+                },
+            ),
+            handler="handler.send_request.lambda_handler",
+            environment={
+                "CDSAPI_KEY": cds_key.string_value,
+                "CDSAPI_URL": cds_url.string_value,
+            },
+            timeout=Duration.seconds(10),
+        )
+        check_result = _lambda.Function(
+            self,
+            "checkResult",
+            runtime=_lambda.Runtime.PYTHON_3_10,
+            code=_lambda.Code.from_asset(
+                "app/checkresult",
+                bundling={
+                    "image": _lambda.Runtime.PYTHON_3_10.bundling_image,
+                    "command": [
+                        "bash",
+                        "-c",
+                        "pip install -r requirements.txt -t /asset-output && cp -au . /asset-output",
+                    ],
+                },
+            ),
+            handler="handler.check_result.lambda_handler",
+            environment={
+                "CDSAPI_KEY": cds_key.string_value,
+                "CDSAPI_URL": cds_url.string_value,
+            },
             timeout=Duration.seconds(10),
         )
         process_file = _lambda.Function(
@@ -61,22 +120,32 @@ class Era5Stack(Stack):
             runtime=_lambda.Runtime.PYTHON_3_10,
             code=_lambda.Code.from_asset("app/process"),
             handler="handler.process_file.lambda_handler",
+            environment={
+                "CDSAPI_KEY": cds_key.string_value,
+                "CDSAPI_URL": cds_url.string_value,
+            },
         )
 
         # SFN
-        check_file_fail_state = sfn.Fail(
+
+        send_request_task = tasks.LambdaInvoke(
             self,
-            "checkFileFail",
-            comment="Something went wrong checking if file exists!",
+            "sendRequestTask",
+            lambda_function=send_request,
+            payload=sfn.TaskInput.from_object(
+                {
+                    "date": sfn.JsonPath.string_at("$.date"),
+                    "hour": sfn.JsonPath.string_at("$.hour"),
+                }
+            ),
+            result_path="$.SendRequest",
         )
-        check_file_success_state = sfn.Succeed(
-            self, "fileSuccess", comment="File exist"
-        )
-        download_file_fail_state = sfn.Fail(
-            self, "downloadFileFail", comment="Something went wrong while downloading!"
-        )
-        download_file_succes_state = sfn.Succeed(
-            self, "downloadSuccess", comment="Download success"
+        check_result_task = tasks.LambdaInvoke(
+            self,
+            "checkResultTask",
+            lambda_function=check_result,
+            payload=sfn.TaskInput.from_json_path_at("$.SendRequest.Payload"),
+            result_path="$.CheckResult",
         )
         check_file_task = tasks.LambdaInvoke(
             self,
@@ -102,6 +171,7 @@ class Era5Stack(Stack):
                 {
                     "date": sfn.JsonPath.string_at("$.date"),
                     "hour": sfn.JsonPath.string_at("$.hour"),
+                    "reply": sfn.JsonPath.object_at("$.CheckResult.Payload"),
                 }
             ),
         )
@@ -124,6 +194,16 @@ class Era5Stack(Stack):
             backoff_rate=2,
             interval=Duration.minutes(30),
         )
+
+        # Logic flow & State
+        check_file_fail_state = sfn.Fail(
+            self,
+            "checkFileFail",
+            comment="Something went wrong checking if file exists!",
+        )
+        check_file_success_state = sfn.Succeed(
+            self, "fileSuccess", comment="File exist"
+        )
         checkfile_exists_state = sfn.Choice(
             self,
             "checkFileExist",
@@ -135,13 +215,44 @@ class Era5Stack(Stack):
         )
         checkfile_exists_state.when(
             sfn.Condition.number_equals("$.CheckFile.Payload.StatusCode", 404),
-            download_era5_task,
+            send_request_task,
         )
         checkfile_exists_state.otherwise(check_file_fail_state)
+
+        wait_state = sfn.Wait(
+            self, "Wait", time=sfn.WaitTime.duration(Duration.seconds(30))
+        )
+
+        send_request_task.next(wait_state)
+        wait_state.next(check_result_task)
+
+        check_result_choice_state = sfn.Choice(self, "checkResultChoiceState")
+        check_result_task.next(check_result_choice_state)
+        check_result_choice_state.when(
+            sfn.Condition.string_equals("$.CheckResult.Payload.state", "queued"),
+            wait_state,
+        )
+        check_result_choice_state.when(
+            sfn.Condition.string_equals("$.CheckResult.Payload.state", "completed"),
+            download_era5_task,
+        )
+        check_result_choice_state.when(
+            sfn.Condition.string_equals("$.CheckResult.Payload.state", "running"),
+            wait_state,
+        )
+        download_file_fail_state = sfn.Fail(
+            self, "downloadFileFail", comment="Something went wrong while downloading!"
+        )
+        check_result_choice_state.otherwise(download_file_fail_state)
+
+        download_file_succes_state = sfn.Succeed(
+            self, "downloadSuccess", comment="Download success"
+        )
+
         download_era5_ok_state = sfn.Choice(self, "downloadOKState")
         download_era5_task.next(download_era5_ok_state)
         download_era5_ok_state.when(
-            sfn.Condition.string_equals("$.DownloadERA5.Payload.state", "completed"),
+            sfn.Condition.number_equals("$.DownloadERA5.Payload.StatusCode", 200),
             download_file_succes_state,
         )
         download_era5_ok_state.otherwise(download_file_fail_state)
