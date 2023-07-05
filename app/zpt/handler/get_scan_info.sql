@@ -4,8 +4,8 @@ with att as (
         latitude,
         longitude
     from attitude_level1
-    where mjd >= 59881
-        and mjd < 59881.2
+    where mjd >= :'start'
+        and mjd < :'end'
 ),
 min_stw as (
     select min(stw)

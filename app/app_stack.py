@@ -1,9 +1,9 @@
 from aws_cdk import Duration, Stack
 from aws_cdk import aws_events as events
 from aws_cdk import aws_events_targets as targets
-from aws_cdk import aws_iam
 from aws_cdk import aws_lambda as _lambda
 from aws_cdk import aws_s3 as s3
+from aws_cdk import aws_ssm
 from aws_cdk import aws_stepfunctions as sfn
 from aws_cdk import aws_stepfunctions_tasks as tasks
 from constructs import Construct
@@ -27,7 +27,7 @@ class Era5Stack(Stack):
             string_parameter_name="/odin/cdsapi/url",
         )
 
-        download_era5: _lambda.IFunction = _lambda.Function(
+        download_era5 = _lambda.Function(
             self,
             "downloadERA5",
             timeout=Duration.minutes(15),
@@ -50,14 +50,7 @@ class Era5Stack(Stack):
                 "CDSAPI_URL": cds_url.string_value,
             },
         )
-        download_era5.add_to_role_policy(statement)
-        download_era5.role.attach_inline_policy
 
-        rac_lambda.add_to_role_policy(iam.PolicyStatement(
-            effect=iam.Effect.ALLOW,
-            actions=["ssm:GetParameter"],
-            resources=[f"arn:aws:ssm:*:*:parameter{config_ssm_name}"]
-            
         check_file = _lambda.Function(
             self,
             "checkFile",

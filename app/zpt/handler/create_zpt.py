@@ -1,48 +1,83 @@
-from datetime import datetime, timedelta
 from typing import Any, Dict
-from pandas import read_sql
-from psycopg import connect
-import s3fs 
-import xarray
 
-MJD_START_DATE = datetime(1858, 11, 17)
-DAYS_PER_SECOND = 1.0 / 60 / 60 / 24
+import arrow
+from pandas import date_range, to_datetime
+
+from .era5_dataset import get_dataset
+from .geoloc_tools import getscangeoloc
+from .geos import gmh
+from .mjd import mjd2datetime
+from .scanid import ScanInfo
+from .ssm_parameters import get_parameters
 
 
-def datetime2mjd(dt: datetime) -> float:
-    return (dt - MJD_START_DATE).total_seconds() * DAYS_PER_SECOND
+def lambda_handler(event: Dict[str, Any], context: Dict[str, Any]):
+    interval_start = arrow.get(f"{event['start_date']}")
+    interval_end = arrow.get(f"{event['end_date']}")
 
+    pg_credentials = get_parameters(
+        ["/odin/psql/user", "/odin/psql/db", "/odin/psql/host", "/odin/psql/password"]
+    )
 
-def mjd2datetime(mjd: float) -> datetime:
-    return MJD_START_DATE + timedelta(days=mjd)
+    l1_connect_string = (
+        f"postgresql+psycopg://{pg_credentials.user}:{pg_credentials.password}@"
+        f"{pg_credentials.host}/{pg_credentials.db}?sslmode=verify-ca"
+    )
 
-def lambda_handler(event: Dict[str, Any], contex: Dict[str, Any]) -> Dict[str, Any]:
-    date = str(event.get("date"))
-    hour = int(event.get("hour",-1))
-    dt = datetime.fromisoformat(date) + timedelta(hours=hour)
-    interval_start:datetime = dt
-    interval_end: datetime = dt + timedelta(hours=6)
-
-    return {
-        "statusCode": 200,
+    level1db = ScanInfo(l1_connect_string)
+    scan_data = level1db.get_scan_info(interval_start.datetime, interval_end.datetime)
+    scan_data["mjd_mid"] = (scan_data["mjd"] + scan_data["end_mjd"]) / 2
+    scan_data["mid_date"] = scan_data["mjd_mid"].apply(
+        lambda x: mjd2datetime(x).replace(tzinfo=None)
+    )
+    scan_data["mid_latitude"], scan_data["mid_longitude"] = getscangeoloc(
+        scan_data["latitude"],
+        scan_data["longitude"],
+        scan_data["end_latitude"],
+        scan_data["end_longitude"],
+    )
+    scans = scan_data.set_index("scanid").to_xarray()
+    scans.latitude.attrs = {
+        "long_name": "latitude start scan",
+        "units": "degrees",
+        "description": "Latitude of first spectrum in scan",
     }
+    scans.longitude.attrs = {
+        "long_name": "Longitude start scan",
+        "units": "degrees",
+        "description": "Longitude of first spectrum in scan",
+    }
+    era5_timesteps = date_range(
+        to_datetime(interval_start.datetime).floor(freq="6H"),
+        to_datetime(interval_end.datetime).ceil(freq="6H"),
+        freq="6H",
+    )
+    era5_data = get_dataset(era5_timesteps)
 
-def read_dataset():
-    s3 = s3fs.S3FileSystem(profile='odin-cdk')
-    stores = [
-        s3fs.S3Map(root='s3://odin-era5/output-21-18.zarr', check=False, s3=s3),
-        s3fs.S3Map(root='s3://odin-era5/output-22-12.zarr', check=False, s3=s3),
-        s3fs.S3Map(root='s3://odin-era5/output-22-00.zarr', check=False, s3=s3),
-        s3fs.S3Map(root='s3://odin-era5/output-22-06.zarr', check=False, s3=s3),
-    ]
-    datasets = [xarray.open_zarr(store) for store in stores]
-    combined = xarray.concat(datasets, dim='time')
-    combined.sortby('time')
-
-
-def save_dataset():
-    ds = xarray.open_dataset('ea_pl_2023-06-21-18.nc')
-    s3 = s3fs.S3FileSystem(profile='odin-cdk')
-    output_url = 's3://odin-era5/output-21-18.zarr'
-    store = s3fs.S3Map(root=output_url, s3=s3, check=False)
-    ds.to_zarr(store=store)
+    era5_data["longitude"] = era5_data.longitude - 180
+    #scans["era5_level"] = era5_data.level
+    scans["era5_z"] = (
+        ["scanid", "era5_level"],
+        era5_data.z.sel(
+            latitude=scans["mid_latitude"],
+            longitude=scans["mid_longitude"],
+            time=scans["mid_date"],
+            method="nearest",
+        ).data,
+    )
+    scans.era5_z.attrs = era5_data.z.attrs
+    scans["era5_t"] = (
+        ["scanid", "era5_level"],
+        era5_data.t.sel(
+            latitude=scans["mid_latitude"],
+            longitude=scans["mid_longitude"],
+            time=scans["mid_date"],
+            method="nearest",
+        ).data,
+    )
+    scans.era5_t.attrs = era5_data.t.attrs
+    scans["era5_gmh"] = gmh(scans.mid_latitude, scans.era5_z)
+    scans.era5_gmh.attrs = {'long_name':'geometric height', 'units': 'km'}
+    #scans = scans.assign_coords(era5_level=scans.era5_gmh)
+    era5_data.assign_coords()
+    return era5_data, scans

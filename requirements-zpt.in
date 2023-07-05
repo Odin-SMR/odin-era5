@@ -8,3 +8,4 @@ netCDF4
 zarr
 psycopg[binary]
 SQLAlchemy
+scipy

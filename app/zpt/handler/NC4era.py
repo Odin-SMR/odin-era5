@@ -78,17 +78,20 @@ class NCera:
         lons = lons[lonsort]
         pres = fid.variables["level"][:].astype(float) * 100  # millibar to Pa
         # make it 3d to match the old files
+        # 480 longitudes
+        # 241 latitudes
+        # 37 levels
         pres = np.tile(pres, [480, 241, 1]).T
-        gp = readfield(fid, "z", lonsort, ind)
-        gmh = np.zeros(gp.shape)
+        z = readfield(fid, "z", lonsort, ind)
+        gmh = np.zeros(z.shape)
 
         # Calculate gmh
         G0 = 9.80665  # ms**-2
         for ilat, lat in enumerate(lats):
             Re = geoid_radius(lat) * 1000  # to m
             for ip, pp in enumerate(pres):
-                glat = g(gp[ip, ilat, :] / G0 / 1000, lat)
-                hr = gp[ip, ilat, :] / G0
+                glat = g(z[ip, ilat, :] / G0 / 1000, lat)
+                hr = z[ip, ilat, :] / G0
                 # to km
                 gmh[ip, ilat, :] = hr * Re / (glat * Re / G0 - hr) / 1000
 
