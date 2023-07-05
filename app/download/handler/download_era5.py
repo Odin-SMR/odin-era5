@@ -1,7 +1,7 @@
 import datetime
 import tempfile
 
-import s3fs
+import s3fs  # type: ignore
 import xarray
 from cdsapi.api import Client, Result  # type: ignore
 
