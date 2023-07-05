@@ -4,6 +4,7 @@ from aws_cdk import aws_events_targets as targets
 from aws_cdk import aws_lambda as _lambda
 from aws_cdk import aws_s3 as s3
 from aws_cdk import aws_ssm
+from aws_cdk import aws_iam as iam
 from aws_cdk import aws_stepfunctions as sfn
 from aws_cdk import aws_stepfunctions_tasks as tasks
 from constructs import Construct
@@ -16,6 +17,17 @@ class Era5Stack(Stack):
         super().__init__(scope, id, **kwargs)
 
         era5_bucket = s3.Bucket.from_bucket_name(self, "Era5Bucket", BUCKET)
+        role = iam.Role(self, "LambdaProcessRole", assumed_by=iam.ServicePrincipal)
+        role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "states:ListStateMachines",
+                    "states:DescribeStateMachine",
+                    "states:StartExecution",
+                ],
+                resources=["*"],
+            ),
+        )
         cds_key = aws_ssm.StringParameter.from_string_parameter_name(
             self,
             "cdsKey",
@@ -117,6 +129,7 @@ class Era5Stack(Stack):
                 "CDSAPI_KEY": cds_key.string_value,
                 "CDSAPI_URL": cds_url.string_value,
             },
+            role=role,
         )
 
         # SFN
