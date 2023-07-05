@@ -1,4 +1,11 @@
 -c ${CONSTRAINTS}
-numpy
-scipy
+arrow
 netCDF4
+nrlmsise00
+numpy
+pandas
+pyarrow
+s3fs
+scipy
+SQLAlchemy
+xarray

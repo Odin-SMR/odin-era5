@@ -8,3 +8,5 @@ black
 boto3-stubs[essential, stepfunctions]
 types-requests
 pyarrow-stubs
+SQLAlchemy-stubs
+pandas-stubs

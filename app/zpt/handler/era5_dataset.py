@@ -2,7 +2,7 @@ from datetime import datetime
 from tempfile import NamedTemporaryFile
 import boto3
 from pandas import DatetimeIndex
-import s3fs
+import s3fs  # type: ignore
 import xarray
 
 

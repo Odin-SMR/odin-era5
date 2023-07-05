@@ -1,20 +1,13 @@
 import os
-import re
-import datetime as DT
 from datetime import datetime
 
-from netCDF4 import Dataset
+import nrlmsise00 as M90  # type:ignore
 import numpy as np
 import xarray
+from scipy.integrate import odeint  # type:ignore
+from scipy.interpolate import BSpline, splrep  # type:ignore
+
 from .geos import intermbar
-from scipy.integrate import odeint
-from scipy.interpolate import BSpline, splrep
-from simpleflock import SimpleFlock
-
-import odinapi.views.msis90 as M90
-from odinapi.views.NC4era import NCera
-from odinapi.utils.time_util import mjd2datetime, datetime2mjd
-
 
 AVOGADRO = 6.02282e23  # [mol^-1] aovogadros number
 Ro = 8.3143  # [J * mol^-1 * K^-1] ideal gas constant
@@ -95,7 +88,6 @@ class Donaletty:
         zpt = np.vstack((newz, newp, newT)).transpose()
         return zpt
 
-
     def get_filepath(self, date, hour):
         # ERA-Interim (ei) data is used before 2019-09-01,
         # and ERA5 (ea) data afterwards
@@ -140,18 +132,12 @@ class Donaletty:
         return datadict
 
 
-
-
-
-def run_donaletty(
-    scan_data
-):
+def run_donaletty(scan_data):
     # create file
     donaletty = Donaletty()
     zpt = donaletty.makeprofile(midlat, midlon, date, scanid)
     save_zptfile(filepath, zpt)
     return zpt
-
 
     latest_file = sorted(os.listdir(os.path.join(basedir, latest_year, latest_month)))[
         -1
