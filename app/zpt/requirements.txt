@@ -1,0 +1,5 @@
+certifi==2023.5.7
+cftime==1.6.2
+netcdf4==1.6.4
+numpy==1.25.0
+scipy==1.11.1
