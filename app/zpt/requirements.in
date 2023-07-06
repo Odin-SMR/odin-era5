@@ -1,0 +1,4 @@
+-c ${CONSTRAINTS}
+numpy
+scipy
+netCDF4
