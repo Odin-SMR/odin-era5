@@ -1,2 +1,4 @@
 -c ${CONSTRAINTS}
 cdsapi
+s3fs
+xarray
