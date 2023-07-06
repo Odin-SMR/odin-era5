@@ -13,7 +13,7 @@ def lambda_handler(event, context):
     hour = event["hour"]
     dt = datetime.date.fromisoformat(date)
     zarr_url = (
-        f"s3://odin-era5/{dt.year}/{dt.month:02}/"
+        f"s3://${BUCKET}/{dt.year}/{dt.month:02}/"
         f"ea_pl_{dt.year}-{dt.month:02}-{dt.day:02}-{hour}.zarr"
     )
     client = Client(progress=False, wait_until_complete=False)
