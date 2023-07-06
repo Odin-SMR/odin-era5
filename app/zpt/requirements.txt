@@ -26,7 +26,7 @@ pytz==2023.3
 s3fs==2023.6.0
 scipy==1.11.1
 six==1.16.0
-sqlalchemy==2.0.17
+sqlalchemy==2.0.18
 typing-extensions==4.7.1
 tzdata==2023.3
 urllib3==1.26.16

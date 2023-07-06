@@ -29,7 +29,7 @@ black==23.3.0
     # via -r requirements-dev.in
 boto3==1.26.161
     # via -r requirements-dev.in
-boto3-stubs==1.27.0
+boto3-stubs==1.27.1
     # via -r requirements-dev.in
 botocore==1.29.161
     # via
@@ -208,7 +208,9 @@ pytz==2023.3
 requests==2.31.0
     # via cdsapi
 s3fs==2023.6.0
-    # via -r app/zpt/requirements.in
+    # via
+    #   -r app/download/requirements.in
+    #   -r app/zpt/requirements.in
 s3transfer==0.6.1
     # via boto3
 scipy==1.11.1
@@ -217,7 +219,7 @@ six==1.16.0
     # via python-dateutil
 smmap==5.0.0
     # via gitdb
-sqlalchemy==2.0.17
+sqlalchemy==2.0.18
     # via -r app/zpt/requirements.in
 sqlalchemy-stubs==0.4
     # via -r requirements-dev.in
@@ -275,7 +277,9 @@ wheel==0.40.0
 wrapt==1.15.0
     # via aiobotocore
 xarray==2023.6.0
-    # via -r app/zpt/requirements.in
+    # via
+    #   -r app/download/requirements.in
+    #   -r app/zpt/requirements.in
 yarl==1.9.2
     # via aiohttp
 
