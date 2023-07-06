@@ -1,5 +1,18 @@
+aiobotocore==2.5.1
+    # via s3fs
+aiohttp==3.8.4
+    # via
+    #   aiobotocore
+    #   s3fs
+aioitertools==0.11.0
+    # via aiobotocore
+aiosignal==1.3.1
+    # via aiohttp
+async-timeout==4.0.2
+    # via aiohttp
 attrs==23.1.0
     # via
+    #   aiohttp
     #   cattrs
     #   jsii
 aws-cdk-asset-awscli-v1==2.2.200
@@ -12,12 +25,13 @@ aws-cdk-lib==2.86.0
     # via -r requirements.in
 black==23.3.0
     # via -r requirements-dev.in
-boto3==1.27.0
+boto3==1.26.161
     # via -r requirements-dev.in
-boto3-stubs==1.27.0
+boto3-stubs==1.27.1
     # via -r requirements-dev.in
-botocore==1.30.0
+botocore==1.29.161
     # via
+    #   aiobotocore
     #   boto3
     #   s3transfer
 botocore-stubs==1.29.165
@@ -41,7 +55,9 @@ cftime==1.6.2
 chardet==5.1.0
     # via tox
 charset-normalizer==3.1.0
-    # via requests
+    # via
+    #   aiohttp
+    #   requests
 click==8.1.3
     # via
     #   black
@@ -60,12 +76,20 @@ filelock==3.12.2
     # via
     #   tox
     #   virtualenv
+frozenlist==1.3.3
+    # via
+    #   aiohttp
+    #   aiosignal
+fsspec==2023.6.0
+    # via s3fs
 gitdb==4.0.10
     # via gitpython
 gitpython==3.1.31
     # via -r requirements.in
 idna==3.4
-    # via requests
+    # via
+    #   requests
+    #   yarl
 importlib-resources==5.12.0
     # via jsii
 iniconfig==2.0.0
@@ -81,6 +105,10 @@ jsii==1.84.0
     #   aws-cdk-asset-node-proxy-agent-v5
     #   aws-cdk-lib
     #   constructs
+multidict==6.0.4
+    # via
+    #   aiohttp
+    #   yarl
 mypy==1.4.1
     # via -r requirements-dev.in
 mypy-boto3-cloudformation==1.27.0
@@ -110,7 +138,9 @@ numpy==1.25.0
     #   -r app/zpt/requirements.in
     #   cftime
     #   netcdf4
+    #   pandas
     #   scipy
+    #   xarray
 packaging==23.1
     # via
     #   black
@@ -118,6 +148,9 @@ packaging==23.1
     #   pyproject-api
     #   pytest
     #   tox
+    #   xarray
+pandas==2.0.3
+    # via xarray
 pathspec==0.11.1
     # via black
 pip-tools==6.14.0
@@ -149,8 +182,13 @@ python-dateutil==2.8.2
     # via
     #   botocore
     #   jsii
+    #   pandas
+pytz==2023.3
+    # via pandas
 requests==2.31.0
     # via cdsapi
+s3fs==2023.6.0
+    # via -r app/download/requirements.in
 s3transfer==0.6.1
     # via boto3
 scipy==1.11.1
@@ -196,6 +234,8 @@ typing-extensions==4.7.1
     #   cattrs
     #   jsii
     #   mypy
+tzdata==2023.3
+    # via pandas
 urllib3==1.26.16
     # via
     #   botocore
@@ -204,6 +244,12 @@ virtualenv==20.23.1
     # via tox
 wheel==0.40.0
     # via pip-tools
+wrapt==1.15.0
+    # via aiobotocore
+xarray==2023.6.0
+    # via -r app/download/requirements.in
+yarl==1.9.2
+    # via aiohttp
 
 # The following packages are considered to be unsafe in a requirements file:
 # pip
