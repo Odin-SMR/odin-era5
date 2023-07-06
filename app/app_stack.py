@@ -4,6 +4,7 @@ from aws_cdk import aws_events_targets as targets
 from aws_cdk import aws_lambda as _lambda
 from aws_cdk import aws_s3 as s3
 from aws_cdk import aws_ssm
+from aws_cdk import aws_iam as iam
 from aws_cdk import aws_stepfunctions as sfn
 from aws_cdk import aws_stepfunctions_tasks as tasks
 from constructs import Construct
@@ -118,8 +119,15 @@ class Era5Stack(Stack):
                 "CDSAPI_URL": cds_url.string_value,
             },
         )
-
-        # SFN
+        process_file.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "states:ListStateMachines",
+                    "states:StartExecution",
+                ],
+                resources=["*"],
+            ),
+        )
 
         send_request_task = tasks.LambdaInvoke(
             self,
