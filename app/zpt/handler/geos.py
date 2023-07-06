@@ -50,28 +50,6 @@ def gmh(lats, z):
     Re = geoid_radius(lats) * 1000  # to m
     glat = g(z / G0 / 1000, lats)
     hr = z / G0
-    # to km
-    gmh = hr * Re / (glat * Re / G0 - hr) / 1000
-    return gmh
+    return hr * Re / (glat * Re / G0 - hr) / 1000 # back to km
 
 
-def intermbar(z):
-    mbars = np.r_[
-        28.9644,
-        28.9151,
-        28.73,
-        28.40,
-        27.88,
-        27.27,
-        26.68,
-        26.20,
-        25.80,
-        25.44,
-        25.09,
-        24.75,
-        24.42,
-        24.10,
-    ]
-    mbarz = np.arange(85, 151, 5)
-    m = np.interp(z, mbarz, mbars)
-    return m

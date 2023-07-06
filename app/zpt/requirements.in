@@ -4,8 +4,10 @@ netCDF4
 nrlmsise00
 numpy
 pandas
+psycopg[binary]
 pyarrow
 s3fs
 scipy
 SQLAlchemy
 xarray
+zarr

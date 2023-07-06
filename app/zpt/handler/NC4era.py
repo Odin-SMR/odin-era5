@@ -13,69 +13,12 @@ import numpy as np
 
 class NCera:
     def __init__(self, filename, ind):
-        """
-        This routine will allow us to access
-        """
 
-        def readfield(fid, fieldname, lonsort, ind=0):
-            np.disp("Reading field {}, index {}".format(fieldname, ind))
-            field = np.array(fid.variables[fieldname])[ind, :, :, :]
-            # field=np.r_[field]*field.scale_factor+field.add_offset
-            field = np.ma.filled(field, np.nan)[:, :, lonsort]
-            return field
 
-        def geoid_radius(latitude):
-            """
-            Function from GEOS5 class.
-            GEOID_RADIUS calculates the radius of the geoid at the given
-            latitude
-            [Re] = geoid_radius(latitude) calculates the radius of the geoid
-            (km) at the given latitude (degrees).
-            ----------------------------------------------------------------
-                 Craig Haley 11-06-04
-            ---------------------------------------------------------------
-            """
-            DEGREE = np.pi / 180.0
-            EQRAD = 6378.14 * 1000
-            FLAT = 1.0 / 298.257
-            Rmax = EQRAD
-            Rmin = Rmax * (1.0 - FLAT)
-            Re = (
-                np.sqrt(
-                    1.0
-                    / (
-                        np.cos(latitude * DEGREE) ** 2 / Rmax**2
-                        + np.sin(latitude * DEGREE) ** 2 / Rmin**2
-                    )
-                )
-                / 1000
-            )
-            return Re
 
-        def g(z, lat):
-            # Re=6372;
-            # g=9.81*(1-2.*z/Re)
-            return (
-                9.80616
-                * (
-                    1
-                    - 0.0026373 * np.cos(2 * lat * np.pi / 180.0)
-                    + 0.0000059 * np.cos(2 * lat * np.pi / 180.0) ** 2
-                )
-                * (1 - 2.0 * z / geoid_radius(lat))
-            )
 
          ## read file from s3
-        fid = Dataset(filename, "r")
 
-        lats = fid.variables["latitude"]
-        lats = np.r_[lats]
-        lons = fid.variables["longitude"]
-        # change longitudes from  0- 360 to -180 - 180
-        lons = np.r_[lons]
-        lons[lons > 180] = lons[lons > 180] - 360
-        lonsort = lons.argsort()
-        lons = lons[lonsort]
         pres = fid.variables["level"][:].astype(float) * 100  # millibar to Pa
         # make it 3d to match the old files
         # 480 longitudes

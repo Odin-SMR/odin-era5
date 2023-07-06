@@ -44,14 +44,16 @@ class Msis90:
             filesystem=s3,
         )
         df = table.to_pandas()
-        apavg, f107, f107a = df.loc[datetime.isoformat()]
+        apavg, f107, f107a = df.loc[datetime.date().isoformat()]
         P = np.zeros(altitudes.shape)
         T = np.zeros(altitudes.shape)
         Z = altitudes
         for i, alt in enumerate(altitudes):
-            d, t = msise_model(
+            dens, temp = msise_model(
                 datetime, alt, lat, lng, f107a, f107, apavg, flags=[1] * 24
             )
+            t = np.array(temp)
+            d = np.array(dens)
             T[i] = t[1]
             P[i] = (d.sum() - d[5]) * kB * t[1] / 100.0
 
@@ -65,7 +67,7 @@ class Msis90:
         T = np.zeros(altitudes.shape)
         Z = altitudes
         for i, alt in enumerate(altitudes):
-            d, t = msise_model(
+            dens, temp = msise_model(
                 datetime,
                 alt,
                 lat,
@@ -74,6 +76,8 @@ class Msis90:
                 f107,
                 apavg,
             )
+            t = np.array(temp)
+            d = np.array(dens)
             T[i] = t[1]
             P[i] = (d.sum() - d[5]) * kB * t[1] / 100.0
         return P, T, Z
