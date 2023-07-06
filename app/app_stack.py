@@ -129,8 +129,6 @@ class Era5Stack(Stack):
             ),
         )
 
-        # SFN
-
         send_request_task = tasks.LambdaInvoke(
             self,
             "sendRequestTask",
