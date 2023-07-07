@@ -87,7 +87,6 @@ def lambda_handler(event: Dict[str, Any], context: Dict[str, Any]):
     scans["theta"] = scans["era5_t"] * (1e3 / scans["level"]) ** 0.286 # pressure in mb
     scans.theta.attrs = {"long_name": "Potential temperature", "units": "K"}
 
-    # donaletty = Donaletty()
-    # return donaletty.makeprofile(scandata)
-    return scans
+    donaletty = Donaletty()
+    return donaletty.makeprofile(scans)
 

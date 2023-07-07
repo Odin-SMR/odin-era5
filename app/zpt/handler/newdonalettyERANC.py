@@ -37,24 +37,22 @@ class Donaletty:
         z = np.r_[scan_data.era5_gmh.data, msisz]
         temp = np.r_[scan_data.era5_t, msisT]
         normrho = (
-            np.interp([20], scan_data.era5_gmh, scan_data.era5_level)
+            np.interp([20], scan_data.era5_gmh.data, scan_data.era5_level.data)
             * 28.9644
             / 1000
             / Ro
-            / np.interp([20], scan_data.era5_gmh, scan_data.era5_t)
+            / np.interp([20], scan_data.era5_gmh.data, scan_data.era5_t.data)
         )
         newT, newp, _, _, _, _, _ = intatm(
-            z, temp, newz, 20, normrho[0], scan_data.latitude
+            z, temp, newz, 20, normrho[0], scan_data.latitude.item()
         )
         zpt = xarray.Dataset(
             data_vars=dict(
-                scanid=(["id"], scan_data.scanid),
                 p=(["z"], newp),
                 t=(["z"], newT),
             ),
             coords=dict(
                 gmh=(["z"], newz),
-                scanid=(["id"], scan_data.scanid),
             ),
         )
         return zpt
@@ -63,9 +61,12 @@ class Donaletty:
         ecmz = np.arange(45)
         newz = np.arange(151)
         scan_on_interp_gmh = scans.groupby("scanid").map(
-            lambda ds: ds.swap_dims(level="era5_gmh").interp(era5_gmh=ecmz)
+            lambda ds: ds.swap_dims(level="era5_gmh").interp(
+                era5_gmh=ecmz, kwargs={"fill_value": 273}
+            )
         )
         zpt_donaletty = scan_on_interp_gmh.groupby("scanid").map(
             self.donaletty, args=(newz,)
         )
         return zpt_donaletty
+
