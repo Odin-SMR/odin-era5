@@ -3,15 +3,14 @@ from typing import Any, Dict
 import arrow
 from pandas import date_range, to_datetime
 
-from .newdonalettyERANC import Donaletty
-
 from .era5_dataset import get_dataset
 from .geoloc_tools import getscangeoloc
 from .geos import gmh
 from .mjd import mjd2datetime
+from .newdonalettyERANC import Donaletty
+from .scan_data_descriptions import parameter_desc
 from .scanid import ScanInfo
 from .ssm_parameters import get_parameters
-from .scan_data_descriptions import parameter_desc
 
 
 def lambda_handler(event: Dict[str, Any], context: Dict[str, Any]):
@@ -84,9 +83,8 @@ def lambda_handler(event: Dict[str, Any], context: Dict[str, Any]):
     scans.era5_t.attrs = era5_data.t.attrs
     scans["era5_gmh"] = gmh(scans.mid_latitude, scans.era5_z)
     scans.era5_gmh.attrs = {"long_name": "geometric height", "units": "km"}
-    scans["theta"] = scans["era5_t"] * (1e3 / scans["level"]) ** 0.286 # pressure in mb
+    scans["theta"] = scans["era5_t"] * (1e3 / scans["level"]) ** 0.286  # pressure in mb
     scans.theta.attrs = {"long_name": "Potential temperature", "units": "K"}
 
     donaletty = Donaletty()
     return donaletty.makeprofile(scans)
-

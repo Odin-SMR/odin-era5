@@ -50,6 +50,4 @@ def gmh(lats, z):
     Re = geoid_radius(lats) * 1000  # to m
     glat = g(z / G0 / 1000, lats)
     hr = z / G0
-    return hr * Re / (glat * Re / G0 - hr) / 1000 # back to km
-
-
+    return hr * Re / (glat * Re / G0 - hr) / 1000  # back to km

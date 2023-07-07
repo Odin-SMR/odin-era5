@@ -69,4 +69,3 @@ class Donaletty:
             self.donaletty, args=(newz,)
         )
         return zpt_donaletty
-

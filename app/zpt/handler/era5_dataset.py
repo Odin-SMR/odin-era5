@@ -1,10 +1,10 @@
 from datetime import datetime
 from tempfile import NamedTemporaryFile
+
 import boto3
-from pandas import DatetimeIndex
 import s3fs  # type: ignore
 import xarray
-
+from pandas import DatetimeIndex
 
 s3 = s3fs.S3FileSystem()
 
