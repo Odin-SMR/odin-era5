@@ -1,7 +1,3 @@
-# mypy: ignore-errors
-#!/usr/bin/env python3.8
-# -*- coding: utf-8 -*-
-#
 #  msis90.py
 #
 #  Copyright 2015 Donal Murtagh <donal@chalmers.se>
@@ -21,66 +17,67 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-
-# fmt: off
+#
 import numpy as np
-import nrlmsise00
-import sqlite3 as sqlite
-kB = 1.3806488E-23  # m2 kg s-2 K-1
+import pyarrow.parquet as pq
+from nrlmsise00 import msise_model  # type: ignore
+from s3fs import S3FileSystem  # type: ignore
+
+kB = 1.3806488e-23  # m2 kg s-2 K-1
 
 
 class Msis90:
-    '''class for access to MSIS90e model'''
+    """class for access to MSIS90e model"""
 
     def __init__(
-        self, solardatafile='/home/donal/Dropbox/solar/Solardata2.db',
+        self,
+        solardatafile="s3://odin-solar/spacedata_observed.parquet",
     ):
-        nrlmsis.meters(1)  # turn on SI units
         self.solardatafile = solardatafile
 
     def extractPTZprofilevarsolar(self, datetime, lat, lng, altitudes):
-        db = sqlite.connect(self.solardatafile)
-        cur = db.cursor()
-        selectstr = (
-            'select APAvg, ObsF10_7, ObsCtr81 from solardata where id ='
-            + str(datetime.year * 10000 + datetime.month * 100 + datetime.day)
+        s3 = S3FileSystem()
+        solardatafile = "s3://odin-solar/spacedata_observed.parquet"
+        table = pq.read_table(
+            solardatafile,
+            columns=["DATE", "AP_AVG", "OBS", "OBS_CENTER81"],
+            filesystem=s3,
         )
-        apavg, f107, f107a = cur.execute(selectstr).fetchall()[0]
-        ap = apavg * np.ones(7, 'f')
-        db.close()
-        mass = 48
-        iydd = datetime.timetuple().tm_yday
-        ut = datetime.hour * 3600 + datetime.minute * 60 + datetime.second
+        df = table.to_pandas()
+        apavg, f107, f107a = df.loc[datetime.date().isoformat()]
         P = np.zeros(altitudes.shape)
         T = np.zeros(altitudes.shape)
         Z = altitudes
         for i, alt in enumerate(altitudes):
-            d = np.zeros(9, 'f')
-            t = np.zeros(2, 'f')
-            nrlmsis.gtd7(
-                iydd, ut, alt, lat, lng, ut / 3600 - lng / 15, f107a, f107, ap,
-                mass, d, t,
+            dens, temp = msise_model(
+                datetime, alt, lat, lng, f107a, f107, apavg, flags=[1] * 24
             )
+            t = np.array(temp)
+            d = np.array(dens)
             T[i] = t[1]
-            P[i] = (d.sum() - d[5]) * kB * t[1] / 100.
+            P[i] = (d.sum() - d[5]) * kB * t[1] / 100.0
 
         return P, T, Z
 
     def extractPTZprofilefixedsolar(self, datetime, lat, lng, altitudes):
-        f107a = 100
         f107 = 100
-        ap = 4 * np.ones(7)
-        mass = 48
-        iydd = datetime.timetuple().tm_yday
-        ut = datetime.hour * 3600 + datetime.minute * 60 + datetime.second
+        f107a = 100
+        apavg = 4
         P = np.zeros(altitudes.shape)
         T = np.zeros(altitudes.shape)
         Z = altitudes
         for i, alt in enumerate(altitudes):
-            d, t = nrlmsis.gtd7(
-                iydd, ut, alt, lat, lng, ut / 3600 - lng / 15, f107a, f107, ap,
-                mass,
+            dens, temp = msise_model(
+                datetime,
+                alt,
+                lat,
+                lng,
+                f107a,
+                f107,
+                apavg,
             )
+            t = np.array(temp)
+            d = np.array(dens)
             T[i] = t[1]
-            P[i] = (d.sum() - d[5]) * kB * t[1] / 100.
+            P[i] = (d.sum() - d[5]) * kB * t[1] / 100.0
         return P, T, Z

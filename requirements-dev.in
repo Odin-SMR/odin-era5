@@ -1,9 +1,13 @@
 -c ${CONSTRAINTS}
-boto3
-tox
-pytest
-pip-tools
-mypy
 black
+boto3
 boto3-stubs[essential, stepfunctions]
+matplotlib
+mypy
+pandas-stubs
+pip-tools
+pyarrow-stubs
+pytest
+SQLAlchemy-stubs
+tox
 types-requests
