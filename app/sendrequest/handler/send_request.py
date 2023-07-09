@@ -72,7 +72,7 @@ def get_dataset_and_settings(levtype: str, date: str, hour: str):
 def download_data(date: str, levtype: str, hour: str) -> Dict[str, Any]:
     dataset, settings = get_dataset_and_settings(levtype, date, hour)
 
-    client = cdsapi.Client(progress=False, wait_until_complete=False)
+    client = cdsapi.Client(progress=False, wait_until_complete=False, delete=False)
     result = client.retrieve(
         dataset,
         settings,

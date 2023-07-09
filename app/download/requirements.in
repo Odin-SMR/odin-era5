@@ -2,3 +2,5 @@
 cdsapi
 s3fs
 xarray
+netCDF4
+zarr

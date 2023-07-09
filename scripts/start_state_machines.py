@@ -37,7 +37,7 @@ def main() -> None:
     args = parser.parse_args()
     current_date: date = args.start
     while current_date <= args.end:
-        lambda_handler({"date": current_date}, None)
+        lambda_handler({"date": current_date.isoformat()}, None)
         current_date = current_date + timedelta(days=1)
 
 
