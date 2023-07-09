@@ -28,24 +28,15 @@ class Era5Stack(Stack):
             string_parameter_name="/odin/cdsapi/url",
         )
 
-        download_era5 = _lambda.Function(
+        download_era5 = _lambda.DockerImageFunction(
             self,
             "downloadERA5",
             timeout=Duration.minutes(15),
-            runtime=_lambda.Runtime.PYTHON_3_10,
-            code=_lambda.Code.from_asset(
-                "app/download",
-                bundling={
-                    "image": _lambda.Runtime.PYTHON_3_10.bundling_image,
-                    "command": [
-                        "bash",
-                        "-c",
-                        "pip install -r requirements.txt -t /asset-output && cp -au . /asset-output",
-                    ],
-                },
+            code=_lambda.DockerImageCode.from_image_asset(
+                "./app/download",
             ),
             memory_size=512,
-            handler="handler.download_era5.lambda_handler",
+            architecture=_lambda.Architecture.X86_64,
             environment={
                 "CDSAPI_KEY": cds_key.string_value,
                 "CDSAPI_URL": cds_url.string_value,
@@ -148,6 +139,12 @@ class Era5Stack(Stack):
             payload=sfn.TaskInput.from_json_path_at("$.SendRequest.Payload"),
             result_path="$.CheckResult",
         )
+        check_result_task.add_retry(
+            errors=["States.ALL"],
+            max_attempts=3,
+            backoff_rate=2,
+            interval=Duration.minutes(3),
+        )
         check_file_task = tasks.LambdaInvoke(
             self,
             "Era5StackCheckFile",
@@ -177,19 +174,19 @@ class Era5Stack(Stack):
             ),
         )
 
-        download_era5_task.add_retry(
+        send_request_task.add_retry(
             errors=["CDSAPITooManyRequests"],
             max_attempts=3,
             backoff_rate=2,
             interval=Duration.minutes(15),
         )
-        download_era5_task.add_retry(
+        send_request_task.add_retry(
             errors=["CDSAPINotAvailableYet"],
             max_attempts=3,
             backoff_rate=1,
             interval=Duration.days(1),
         )
-        download_era5_task.add_retry(
+        send_request_task.add_retry(
             errors=["States.ALL"],
             max_attempts=3,
             backoff_rate=2,
