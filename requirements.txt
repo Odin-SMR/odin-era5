@@ -7,7 +7,7 @@ cattrs==23.1.2
 constructs==10.2.69
 exceptiongroup==1.1.2
 gitdb==4.0.10
-gitpython==3.1.31
+gitpython==3.1.32
 importlib-resources==6.0.0
 jsii==1.84.0
 publication==0.0.3
