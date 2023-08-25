@@ -2,7 +2,7 @@ attrs==23.1.0
 aws-cdk-asset-awscli-v1==2.2.200
 aws-cdk-asset-kubectl-v20==2.1.2
 aws-cdk-asset-node-proxy-agent-v6==2.0.1
-aws-cdk-lib==2.92.0
+aws-cdk-lib==2.93.0
 cattrs==23.1.2
 constructs==10.2.69
 exceptiongroup==1.1.3

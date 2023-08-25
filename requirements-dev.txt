@@ -23,20 +23,20 @@ aws-cdk-asset-kubectl-v20==2.1.2
     # via aws-cdk-lib
 aws-cdk-asset-node-proxy-agent-v6==2.0.1
     # via aws-cdk-lib
-aws-cdk-lib==2.92.0
+aws-cdk-lib==2.93.0
     # via -r requirements.in
 black==23.7.0
     # via -r requirements-dev.in
 boto3==1.28.17
     # via -r requirements-dev.in
-boto3-stubs==1.28.31
+boto3-stubs==1.28.34
     # via -r requirements-dev.in
 botocore==1.31.17
     # via
     #   aiobotocore
     #   boto3
     #   s3transfer
-botocore-stubs==1.31.31
+botocore-stubs==1.31.34
     # via boto3-stubs
 build==0.10.0
     # via pip-tools
@@ -48,6 +48,7 @@ cdsapi==0.6.1
     # via
     #   -r app/checkresult/requirements.in
     #   -r app/download/requirements.in
+    #   -r app/sendrequest/requirements.in
 certifi==2023.7.22
     # via
     #   netcdf4
@@ -121,11 +122,11 @@ mypy-boto3-cloudformation==1.28.19
     # via boto3-stubs
 mypy-boto3-dynamodb==1.28.27
     # via boto3-stubs
-mypy-boto3-ec2==1.28.31
+mypy-boto3-ec2==1.28.34
     # via boto3-stubs
 mypy-boto3-lambda==1.28.19
     # via boto3-stubs
-mypy-boto3-rds==1.28.31
+mypy-boto3-rds==1.28.34
     # via boto3-stubs
 mypy-boto3-s3==1.28.27
     # via boto3-stubs
@@ -258,7 +259,7 @@ urllib3==1.26.16
     #   requests
 virtualenv==20.24.3
     # via tox
-wheel==0.41.1
+wheel==0.41.2
     # via pip-tools
 wrapt==1.15.0
     # via aiobotocore
