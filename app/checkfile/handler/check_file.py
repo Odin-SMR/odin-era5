@@ -8,7 +8,7 @@ BUCKET = "odin-era5"
 
 
 class CheckFileEvent(TypedDict):
-    date: str
+    zarr_store: str
 
 
 class CheckFileResult(TypedDict):
@@ -19,8 +19,7 @@ class CheckFileResult(TypedDict):
 
 
 def lambda_handler(event: CheckFileEvent, context):
-    date = datetime.date.fromisoformat(event["date"])
-    zarr_store = f"{date.year}/{date.month:02}/era5_{date.isoformat()}.zarr"
+    zarr_store = event["zarr_store"]
     s3 = s3fs.S3FileSystem(anon=True)
     store = s3fs.S3Map(root=zarr_store, s3=s3)
 

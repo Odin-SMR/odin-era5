@@ -1,11 +1,10 @@
-from datetime  import datetime, date, time, timedelta
+from datetime import datetime, date, time, timedelta
 import json
 from typing import List
 
 import boto3
 
 import hashlib
-
 
 
 def create_short_hash():

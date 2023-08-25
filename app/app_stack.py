@@ -11,6 +11,7 @@ from aws_cdk import aws_stepfunctions_tasks as tasks
 from constructs import Construct
 from app.checkfile.handler.check_file import CheckFileEvent
 from app.stack.CheckFileLambda import CheckFileFunction
+from aws_cdk.aws_lambda import DockerImageFunction, IFunction
 
 from app.sendrequest.handler.send_request import SendRequestEvent
 
@@ -49,7 +50,15 @@ class Era5Stack(Stack):
         )
 
         check_file = CheckFileFunction(
-            self, "CheckFile", cds_key.string_value, cds_url.string_value
+            self,
+            "CheckFile",
+            cds_key.string_value,
+            cds_url.string_value,
+            payload=sfn.TaskInput.from_object(
+                {
+                    "zarr_store": sfn.JsonPath.string_at("$.ZarrStore"),
+                }
+            ),
         )
         send_request = _lambda.Function(
             self,
@@ -121,9 +130,7 @@ class Era5Stack(Stack):
             "sendRequestTask",
             lambda_function=send_request,
             payload=sfn.TaskInput.from_object(
-                {
-                    "time_list": sfn.JsonPath.list_at("$.time_list"),
-                }
+                SendRequestEvent(time_list=sfn.JsonPath.list_at("$.time_list"))
             ),
             result_path="$.SendRequest",
         )
@@ -145,7 +152,7 @@ class Era5Stack(Stack):
             "Era5StackCheckFile",
             lambda_function=check_file,
             payload=sfn.TaskInput.from_object(
-                CheckFileEvent(date=sfn.JsonPath.string_at("$.date"))
+                CheckFileEvent(zarr_store=sfn.JsonPath.string_at("$.ZarrStore"))
             ),
             result_path="$.CheckFile",
             retry_on_service_exceptions=True,
@@ -159,7 +166,7 @@ class Era5Stack(Stack):
             retry_on_service_exceptions=True,
             payload=sfn.TaskInput.from_object(
                 {
-                    "zarr_store": sfn.JsonPath.string_at("$.CheckFile.ZarrStore"),
+                    "zarr_store": sfn.JsonPath.string_at("$.ZarrStore"),
                     "reply": sfn.JsonPath.object_at("$.CheckResult.Payload"),
                 }
             ),
@@ -191,18 +198,17 @@ class Era5Stack(Stack):
         file_ok: sfn.Choice = sfn.Choice(
             self,
             "checkFileExist",
-
         )
         check_file_task.next(file_ok)
         file_ok.when(
-            Condition.number_equals("$.CheckFile.Payload.StatusCode",200),
+            Condition.number_equals("$.CheckFile.Payload.StatusCode", 200),
             check_file_success_state,
         )
         file_ok.when(
             sfn.Condition.number_equals("$.CheckFile.Payload.StatusCode", 404),
             send_request_task,
-        )
-        file_ok.otherwise(send_request_task)
+        )  # OR CONTAINS WRONG DATA?!?!?!?!?1
+        file_ok.otherwise(check_file_success_state)
 
         wait_state = sfn.Wait(
             self, "Wait", time=sfn.WaitTime.duration(Duration.seconds(30))

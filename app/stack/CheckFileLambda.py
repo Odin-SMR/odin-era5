@@ -2,10 +2,14 @@ from aws_cdk import Duration
 from aws_cdk.aws_lambda import Function, Runtime, Code
 from aws_cdk.aws_ecr_assets import DockerImageAsset
 from constructs import Construct
+from aws_cdk.aws_stepfunctions.tasks import TaskInput
+from aws_cdk.aws_lambda import Function
 
 
 class CheckFileFunction(Function):
-    def __init__(self, scope: Construct, id: str, cds_key: str, cds_url: str):
+    def __init__(
+        self, scope: Construct, id: str, cds_key: str, cds_url: str, payload: TaskInput
+    ):
         super().__init__(
             scope,
             id,
