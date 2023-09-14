@@ -9,10 +9,13 @@ from .settings import PRODUCT, settings
 
 BUCKET = "odin-era5"
 
+
 class SendRequestEvent(TypedDict):
     """
     time_list: list of iso-formatted datetime strings.
     """
+
+    date: str
     time_list: List[str]
 
 
@@ -36,7 +39,7 @@ def send_request(date: datetime | List[datetime]) -> Dict[str, Any]:
 def lambda_handler(event: SendRequestEvent, context):
     times: List[datetime] = []
     for time in event["time_list"]:
-        dt = datetime.fromisoformat(f"{time}")
+        dt = datetime.fromisoformat(f"{event['date']}T{time}")
         times.append(dt)
 
     try:

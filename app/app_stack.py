@@ -56,7 +56,7 @@ class Era5Stack(Stack):
             cds_url.string_value,
             payload=sfn.TaskInput.from_object(
                 {
-                    "zarr_store": sfn.JsonPath.string_at("$.ZarrStore"),
+                    "zarr_store": sfn.JsonPath.string_at("$.zarr_store"),
                 }
             ),
         )
@@ -130,7 +130,10 @@ class Era5Stack(Stack):
             "sendRequestTask",
             lambda_function=send_request,
             payload=sfn.TaskInput.from_object(
-                SendRequestEvent(time_list=sfn.JsonPath.list_at("$.time_list"))
+                SendRequestEvent(
+                    date=sfn.JsonPath.string_at("$.date"),
+                    time_list=sfn.JsonPath.list_at("$.time_list"),
+                )
             ),
             result_path="$.SendRequest",
         )
@@ -152,7 +155,7 @@ class Era5Stack(Stack):
             "Era5StackCheckFile",
             lambda_function=check_file,
             payload=sfn.TaskInput.from_object(
-                CheckFileEvent(zarr_store=sfn.JsonPath.string_at("$.ZarrStore"))
+                CheckFileEvent(zarr_store=sfn.JsonPath.string_at("$.zarr_store"))
             ),
             result_path="$.CheckFile",
             retry_on_service_exceptions=True,
@@ -166,7 +169,7 @@ class Era5Stack(Stack):
             retry_on_service_exceptions=True,
             payload=sfn.TaskInput.from_object(
                 {
-                    "zarr_store": sfn.JsonPath.string_at("$.ZarrStore"),
+                    "zarr_store": sfn.JsonPath.string_at("$.zarr_store"),
                     "reply": sfn.JsonPath.object_at("$.CheckResult.Payload"),
                 }
             ),
@@ -201,11 +204,11 @@ class Era5Stack(Stack):
         )
         check_file_task.next(file_ok)
         file_ok.when(
-            Condition.number_equals("$.CheckFile.Payload.StatusCode", 200),
+            Condition.number_equals("$.CheckFile.Payload.status_code", 200),
             check_file_success_state,
         )
         file_ok.when(
-            sfn.Condition.number_equals("$.CheckFile.Payload.StatusCode", 404),
+            sfn.Condition.number_equals("$.CheckFile.Payload.status_code", 404),
             send_request_task,
         )  # OR CONTAINS WRONG DATA?!?!?!?!?1
         file_ok.otherwise(check_file_success_state)

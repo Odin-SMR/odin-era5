@@ -6,6 +6,8 @@ import boto3
 
 import hashlib
 
+BUCKET = "odin-era5"
+
 
 def create_short_hash():
     input_data = str(time()).encode("utf-8")
@@ -17,16 +19,17 @@ def create_short_hash():
 def find_arn():
     client = boto3.client("stepfunctions")
     results = client.list_state_machines()
-    for i in results["stateMachines"]:
-        if i["name"] == "Era5StateMachine":
-            return i["stateMachineArn"]
-    return "None"
+    state_machine = next(
+        (sm for sm in results["stateMachines"] if sm["name"] == "Era5StateMachine"),
+        None,
+    )
+    return state_machine["stateMachineArn"] if state_machine else "None"
 
 
 def lambda_handler(event, context):
-    current_date = date.today()
-    six_days_ago = current_date - timedelta(days=6)
-    event_date = event.get("date", six_days_ago.isoformat())
+    event_date: datetime = datetime.strptime(
+        event.get("date", (date.today() - timedelta(days=6)).isoformat()), "%Y-%m-%d"
+    )
 
     state_machine_arn = find_arn()
 
@@ -39,18 +42,19 @@ def lambda_handler(event, context):
 
     sfn = boto3.client("stepfunctions")
 
-    date_list: List[str] = []
+    date_list = [
+        datetime.combine(event_date, time(hour=hour)).isoformat() for hour in hours
+    ]
 
-    for hour in hours:
-        datetime_string = datetime.combine(event_date, time(hour=hour)).isoformat()
-        date_list.append(datetime_string)
+    zarr_store = (
+        f"s3://{BUCKET}/{event_date.year:02}/{event_date.month:02}/"
+        f"ea_pl_{event_date.year}-{event_date.month:02}-{event_date.day:02}.zarr"
+    )
 
     sfn.start_execution(
         stateMachineArn=state_machine_arn,
-        input=json.dumps(date_list),
-        name=f"{event_date}-{create_short_hash()}",
+        input=json.dumps({"date_list": date_list, "zarr_store": zarr_store}),
+        name=f"{event_date}-{hashlib.md5(str(datetime.now()).encode('utf-8')).hexdigest()}",
     )
 
-    return {
-        "statusCode": 200,
-    }
+    return {"statusCode": 200}
