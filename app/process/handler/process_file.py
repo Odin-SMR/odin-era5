@@ -12,7 +12,7 @@ BUCKET = "odin-era5"
 def create_short_hash():
     input_data = str(time()).encode("utf-8")
     hash_object = hashlib.sha256(input_data)
-    short_hash = hash_object.hexdigest()[:8]
+    short_hash = hash_object.hexdigest()[-20:]
     return short_hash
 
 
@@ -33,18 +33,7 @@ def lambda_handler(event, context):
 
     state_machine_arn = find_arn()
 
-    hours = [
-        0,
-        6,
-        12,
-        18,
-    ]
-
     sfn = boto3.client("stepfunctions")
-
-    date_list = [
-        datetime.combine(event_date, time(hour=hour)).isoformat() for hour in hours
-    ]
 
     zarr_store = (
         f"s3://{BUCKET}/{event_date.year:02}/{event_date.month:02}/"
@@ -53,8 +42,14 @@ def lambda_handler(event, context):
 
     sfn.start_execution(
         stateMachineArn=state_machine_arn,
-        input=json.dumps({"date_list": date_list, "zarr_store": zarr_store}),
-        name=f"{event_date}-{hashlib.md5(str(datetime.now()).encode('utf-8')).hexdigest()}",
+        input=json.dumps(
+            {
+                "date": event_date.date().isoformat(),
+                "zarr_store": zarr_store,
+                "time_list": ["00", "06", "12", "18"],
+            }
+        ),
+        name=f"{event_date.date()}-{create_short_hash()}",
     )
 
     return {"statusCode": 200}
