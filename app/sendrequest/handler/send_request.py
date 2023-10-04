@@ -12,7 +12,8 @@ BUCKET = "odin-era5"
 
 class SendRequestEvent(TypedDict):
     """
-    time_list: list of iso-formatted datetime strings.
+    date: date in iso-format
+    time_list: list of times eg. ['00','12'].
     """
 
     date: str
