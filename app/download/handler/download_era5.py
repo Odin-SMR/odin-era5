@@ -8,13 +8,13 @@ from cdsapi.api import Client, Result  # type: ignore
 
 BUCKET = "odin-era5"
 
+
 class DownloadEvent(TypedDict):
     zarr_store: str
     reply: Mapping[str, Any]
 
 
 def lambda_handler(event: DownloadEvent, context):
-
     zarr_store = event["zarr_store"]
     client = Client(progress=False, wait_until_complete=False)
     result = Result(client, event["reply"])
