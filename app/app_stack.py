@@ -210,7 +210,7 @@ class Era5Stack(Stack):
         file_ok.when(
             sfn.Condition.number_equals("$.CheckFile.Payload.status_code", 404),
             send_request_task,
-        )  # OR CONTAINS WRONG DATA?!?!?!?!?1
+        )
         file_ok.otherwise(check_file_success_state)
 
         wait_state = sfn.Wait(
