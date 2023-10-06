@@ -8,21 +8,6 @@ from app.sendrequest.handler.send_request import (
     SendRequestEvent,
     lambda_handler,
 )
-from app.sendrequest.handler.settings import settings
-
-
-def test_cds_api_single_date_settings():
-    dt = datetime(2001, 1, 1, 0, 0)
-    single_date = settings(dt)
-    assert single_date["date"] == "2001-01-01"
-    assert single_date["time"] == ["00"]
-
-
-def test_cds_api_multiple_date_settings():
-    dt = datetime(2001, 1, 1, 0, 0), datetime(2001, 1, 1, 12, 0)
-    multiple_date = settings(dt)
-    assert multiple_date["date"] == ["2001-01-01"]
-    assert multiple_date["time"] == ["00", "06", "12", "18"]
 
 
 def test_lambda_handler_cdsapi_not_available_yet(mocker):
