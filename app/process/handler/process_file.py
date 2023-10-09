@@ -1,53 +1,55 @@
-import datetime
+from datetime import datetime, date, time, timedelta
 import json
+from typing import List
 
 import boto3
 
 import hashlib
-import time
+
+BUCKET = "odin-era5"
 
 
 def create_short_hash():
-    input_data = str(time.time()).encode("utf-8")
+    input_data = str(time()).encode("utf-8")
     hash_object = hashlib.sha256(input_data)
-    short_hash = hash_object.hexdigest()[:8]
+    short_hash = hash_object.hexdigest()[-20:]
     return short_hash
 
 
 def find_arn():
     client = boto3.client("stepfunctions")
     results = client.list_state_machines()
-    for i in results["stateMachines"]:
-        if i["name"] == "Era5StateMachine":
-            return i["stateMachineArn"]
-    return "None"
+    state_machine = next(
+        (sm for sm in results["stateMachines"] if sm["name"] == "Era5StateMachine"),
+        None,
+    )
+    return state_machine["stateMachineArn"] if state_machine else "None"
 
 
 def lambda_handler(event, context):
-    current_date = datetime.date.today()
-    six_days_ago = current_date - datetime.timedelta(days=6)
-    date = event.get("date", six_days_ago.isoformat())
+    event_date: datetime = datetime.strptime(
+        event.get("date", (date.today() - timedelta(days=6)).isoformat()), "%Y-%m-%d"
+    )
 
     state_machine_arn = find_arn()
 
-    hours = [
-        "00",
-        "06",
-        "12",
-        "18",
-    ]
-
     sfn = boto3.client("stepfunctions")
 
-    for hour in hours:
-        input_data = {"date": date, "hour": hour}
+    zarr_store = (
+        f"s3://{BUCKET}/{event_date.year:02}/{event_date.month:02}/"
+        f"ea_pl_{event_date.year}-{event_date.month:02}-{event_date.day:02}.zarr"
+    )
 
-        sfn.start_execution(
-            stateMachineArn=state_machine_arn,
-            input=json.dumps(input_data),
-            name=f"{date}T{hour}-{create_short_hash()}",
-        )
+    sfn.start_execution(
+        stateMachineArn=state_machine_arn,
+        input=json.dumps(
+            {
+                "date": event_date.date().isoformat(),
+                "zarr_store": zarr_store,
+                "time_list": ["00", "06", "12", "18"],
+            }
+        ),
+        name=f"{event_date.date()}-{create_short_hash()}",
+    )
 
-    return {
-        "statusCode": 200,
-    }
+    return {"statusCode": 200}

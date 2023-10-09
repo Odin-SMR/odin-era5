@@ -1,43 +1,37 @@
 import datetime
-import json
+from typing import Hashable, List, Mapping, TypedDict
 
-import boto3
-from botocore.exceptions import ClientError
+import xarray as xr
+import s3fs  # type: ignore
 
 BUCKET = "odin-era5"
 
 
-class DateTimeEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, datetime.datetime):
-            return obj.isoformat()
-        return super(DateTimeEncoder, self).default(obj)
+class CheckFileEvent(TypedDict):
+    zarr_store: str
 
 
-def lambda_handler(event, context):
-    s3 = boto3.client("s3")
-    date = datetime.date.fromisoformat(event["date"])
-    hour = event["hour"]
-    file_name = f"{date.year}/{date.month:02}/ea_pl_{date.isoformat()}-{hour}.nc"
-    # Reverse: if fail do nu'in else download
+class CheckFileResult(TypedDict):
+    zarr_store: str
+    dimensions: Mapping[Hashable, int] | None
+    times: List[int] | None
+    status_code: int
+
+
+def lambda_handler(event: CheckFileEvent, context):
+    zarr_store = event["zarr_store"]
+    s3 = s3fs.S3FileSystem(anon=True)
+    store = s3fs.S3Map(root=zarr_store, s3=s3)
+
     try:
-        request = s3.head_object(Bucket=BUCKET, Key=file_name)
-        return {
-            "LastModified": request["LastModified"].isoformat(),
-            "ContentLength": request["ContentLength"],
-            "ContentType": request["ContentType"],
-            "StatusCode": request["ResponseMetadata"]["HTTPStatusCode"],
-            "FileName": file_name,
-        }
-    except ClientError as err:
-        error = err.response.get("Error")
-        if error:
-            code = error.get("Code")
-            msg = error.get("Message")
-            if code == "404":
-                return {
-                    "StatusCode": int(code),
-                    "Message": msg,
-                    "FileName": file_name,
-                }
-        raise err
+        ds = xr.open_zarr(store, consolidated=True)
+    except ValueError as e:
+        return CheckFileResult(
+            zarr_store=zarr_store, status_code=404, dimensions=None, times=None
+        )
+    return CheckFileResult(
+        zarr_store=zarr_store,
+        dimensions=ds.dims.mapping,
+        times=ds.time.values.tolist(),
+        status_code=200,
+    )

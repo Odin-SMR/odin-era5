@@ -37,7 +37,15 @@ def main() -> None:
     args = parser.parse_args()
     current_date: date = args.start
     while current_date <= args.end:
-        lambda_handler({"date": current_date}, None)
+        zarr_store = f"s3://odin-era5/{current_date.year}/{current_date.month}/ea_pl_{current_date}.zarr"
+        lambda_handler(
+            {
+                "date": current_date.isoformat(),
+                "zarr_store": zarr_store,
+                "timelist": ["00", "06", "12", "18"],
+            },
+            None,
+        )
         current_date = current_date + timedelta(days=1)
 
 

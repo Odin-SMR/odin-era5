@@ -2,6 +2,7 @@
 boto3
 tox
 pytest
+pytest-mock
 pip-tools
 mypy
 black

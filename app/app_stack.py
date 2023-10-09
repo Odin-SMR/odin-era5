@@ -6,8 +6,14 @@ from aws_cdk import aws_s3 as s3
 from aws_cdk import aws_ssm
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_stepfunctions as sfn
+from aws_cdk.aws_stepfunctions import Condition
 from aws_cdk import aws_stepfunctions_tasks as tasks
 from constructs import Construct
+from app.checkfile.handler.check_file import CheckFileEvent
+from app.stack.CheckFileLambda import CheckFileFunction
+from aws_cdk.aws_lambda import DockerImageFunction, IFunction
+
+from app.sendrequest.handler.send_request import SendRequestEvent
 
 BUCKET = "odin-era5"
 
@@ -28,41 +34,31 @@ class Era5Stack(Stack):
             string_parameter_name="/odin/cdsapi/url",
         )
 
-        download_era5 = _lambda.Function(
+        download_era5 = _lambda.DockerImageFunction(
             self,
             "downloadERA5",
             timeout=Duration.minutes(15),
-            runtime=_lambda.Runtime.PYTHON_3_10,
-            code=_lambda.Code.from_asset(
-                "app/download",
-                bundling={
-                    "image": _lambda.Runtime.PYTHON_3_10.bundling_image,
-                    "command": [
-                        "bash",
-                        "-c",
-                        "pip install -r requirements.txt -t /asset-output && cp -au . /asset-output",
-                    ],
-                },
+            code=_lambda.DockerImageCode.from_image_asset(
+                "./app/download",
             ),
-            memory_size=512,
-            handler="handler.download_era5.lambda_handler",
+            memory_size=4096,
+            architecture=_lambda.Architecture.X86_64,
             environment={
                 "CDSAPI_KEY": cds_key.string_value,
                 "CDSAPI_URL": cds_url.string_value,
             },
         )
 
-        check_file = _lambda.Function(
+        check_file = CheckFileFunction(
             self,
-            "checkFile",
-            runtime=_lambda.Runtime.PYTHON_3_10,
-            code=_lambda.Code.from_asset("app/checkfile"),
-            handler="handler.check_file.lambda_handler",
-            environment={
-                "CDSAPI_KEY": cds_key.string_value,
-                "CDSAPI_URL": cds_url.string_value,
-            },
-            timeout=Duration.seconds(10),
+            "CheckFile",
+            cds_key.string_value,
+            cds_url.string_value,
+            payload=sfn.TaskInput.from_object(
+                {
+                    "zarr_store": sfn.JsonPath.string_at("$.zarr_store"),
+                }
+            ),
         )
         send_request = _lambda.Function(
             self,
@@ -134,10 +130,10 @@ class Era5Stack(Stack):
             "sendRequestTask",
             lambda_function=send_request,
             payload=sfn.TaskInput.from_object(
-                {
-                    "date": sfn.JsonPath.string_at("$.date"),
-                    "hour": sfn.JsonPath.string_at("$.hour"),
-                }
+                SendRequestEvent(
+                    date=sfn.JsonPath.string_at("$.date"),
+                    time_list=sfn.JsonPath.list_at("$.time_list"),
+                )
             ),
             result_path="$.SendRequest",
         )
@@ -148,15 +144,18 @@ class Era5Stack(Stack):
             payload=sfn.TaskInput.from_json_path_at("$.SendRequest.Payload"),
             result_path="$.CheckResult",
         )
+        check_result_task.add_retry(
+            errors=["States.ALL"],
+            max_attempts=3,
+            backoff_rate=2,
+            interval=Duration.minutes(3),
+        )
         check_file_task = tasks.LambdaInvoke(
             self,
             "Era5StackCheckFile",
             lambda_function=check_file,
             payload=sfn.TaskInput.from_object(
-                {
-                    "date": sfn.JsonPath.string_at("$.date"),
-                    "hour": sfn.JsonPath.string_at("$.hour"),
-                }
+                CheckFileEvent(zarr_store=sfn.JsonPath.string_at("$.zarr_store"))
             ),
             result_path="$.CheckFile",
             retry_on_service_exceptions=True,
@@ -170,26 +169,25 @@ class Era5Stack(Stack):
             retry_on_service_exceptions=True,
             payload=sfn.TaskInput.from_object(
                 {
-                    "date": sfn.JsonPath.string_at("$.date"),
-                    "hour": sfn.JsonPath.string_at("$.hour"),
+                    "zarr_store": sfn.JsonPath.string_at("$.zarr_store"),
                     "reply": sfn.JsonPath.object_at("$.CheckResult.Payload"),
                 }
             ),
         )
 
-        download_era5_task.add_retry(
+        send_request_task.add_retry(
             errors=["CDSAPITooManyRequests"],
             max_attempts=3,
             backoff_rate=2,
             interval=Duration.minutes(15),
         )
-        download_era5_task.add_retry(
+        send_request_task.add_retry(
             errors=["CDSAPINotAvailableYet"],
             max_attempts=3,
             backoff_rate=1,
             interval=Duration.days(1),
         )
-        download_era5_task.add_retry(
+        send_request_task.add_retry(
             errors=["States.ALL"],
             max_attempts=3,
             backoff_rate=2,
@@ -197,28 +195,23 @@ class Era5Stack(Stack):
         )
 
         # Logic flow & State
-        check_file_fail_state = sfn.Fail(
-            self,
-            "checkFileFail",
-            comment="Something went wrong checking if file exists!",
-        )
         check_file_success_state = sfn.Succeed(
-            self, "fileSuccess", comment="File exist"
+            self, "fileSuccess", comment="File already exist"
         )
-        checkfile_exists_state = sfn.Choice(
+        file_ok: sfn.Choice = sfn.Choice(
             self,
             "checkFileExist",
         )
-        check_file_task.next(checkfile_exists_state)
-        checkfile_exists_state.when(
-            sfn.Condition.number_equals("$.CheckFile.Payload.StatusCode", 200),
+        check_file_task.next(file_ok)
+        file_ok.when(
+            Condition.number_equals("$.CheckFile.Payload.status_code", 200),
             check_file_success_state,
         )
-        checkfile_exists_state.when(
-            sfn.Condition.number_equals("$.CheckFile.Payload.StatusCode", 404),
+        file_ok.when(
+            sfn.Condition.number_equals("$.CheckFile.Payload.status_code", 404),
             send_request_task,
         )
-        checkfile_exists_state.otherwise(check_file_fail_state)
+        file_ok.otherwise(check_file_success_state)
 
         wait_state = sfn.Wait(
             self, "Wait", time=sfn.WaitTime.duration(Duration.seconds(30))
@@ -250,7 +243,7 @@ class Era5Stack(Stack):
             self, "downloadSuccess", comment="Download success"
         )
 
-        download_era5_ok_state = sfn.Choice(self, "downloadOKState")
+        download_era5_ok_state: sfn.Choice = sfn.Choice(self, "downloadOKState")
         download_era5_task.next(download_era5_ok_state)
         download_era5_ok_state.when(
             sfn.Condition.number_equals("$.DownloadERA5.Payload.StatusCode", 200),

@@ -1,6 +1,3 @@
 -c ${CONSTRAINTS}
-cdsapi
-s3fs
 xarray
-netCDF4
-zarr
+s3fs
