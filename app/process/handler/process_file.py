@@ -1,19 +1,18 @@
-from datetime import datetime, date, time, timedelta
+from datetime import datetime, date, timedelta
 import json
-from typing import List
+import random
+import string
+from typing import Any
 
 import boto3
 
-import hashlib
 
 BUCKET = "odin-era5"
 
 
 def create_short_hash():
-    input_data = str(time()).encode("utf-8")
-    hash_object = hashlib.sha256(input_data)
-    short_hash = hash_object.hexdigest()[-20:]
-    return short_hash
+    chars = string.ascii_lowercase + string.ascii_uppercase + string.digits
+    return "".join(random.choice(chars) for _ in range(8))
 
 
 def find_arn():
@@ -26,7 +25,7 @@ def find_arn():
     return state_machine["stateMachineArn"] if state_machine else "None"
 
 
-def lambda_handler(event, context):
+def lambda_handler(event: dict[str, Any], context: dict[str, Any] | None):
     event_date: datetime = datetime.strptime(
         event.get("date", (date.today() - timedelta(days=6)).isoformat()), "%Y-%m-%d"
     )
