@@ -25,7 +25,7 @@ def find_arn():
     return state_machine["stateMachineArn"] if state_machine else "None"
 
 
-def lambda_handler(event: dict[str, Any], context: dict[str, Any]|None):
+def lambda_handler(event: dict[str, Any], context: dict[str, Any] | None):
     event_date: datetime = datetime.strptime(
         event.get("date", (date.today() - timedelta(days=6)).isoformat()), "%Y-%m-%d"
     )

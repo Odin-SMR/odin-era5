@@ -1,4 +1,3 @@
-import datetime
 from typing import Hashable, List, Mapping, TypedDict
 
 import xarray as xr
