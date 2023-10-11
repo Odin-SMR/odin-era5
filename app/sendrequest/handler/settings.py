@@ -46,7 +46,7 @@ SETTINGS = {
         "975",
         "1000",
     ],
-    "variable": "temperature",
+    "variable": ["temperature", "geopotential"],
 }
 
 
