@@ -12,7 +12,7 @@ class CheckFile(Function):
     def __init__(self, scope: Construct, cds_key: str, cds_url: str):
         super().__init__(
             scope,
-            "CheckFile",
+            self.__class__.__name__,
             runtime=Runtime.PYTHON_3_10,
             code=Code.from_asset(
                 "app/checkfile",
@@ -31,6 +31,7 @@ class CheckFile(Function):
                 "CDSAPI_URL": cds_url,
             },
             timeout=Duration.seconds(10),
+            function_name=self.__class__.__name__,
         )
 
 
@@ -40,7 +41,7 @@ class CheckFileTask(LambdaInvoke):
         bucket.grant_read(self.check_file)
         super().__init__(
             scope,
-            "Era5StackCheckFile",
+            self.__class__.__name__,
             lambda_function=self.check_file,  # type: ignore
             payload=TaskInput.from_object(
                 CheckFileEvent(zarr_store=JsonPath.string_at("$.zarr_store"))

@@ -10,7 +10,7 @@ class DownloadERA5(DockerImageFunction):
     def __init__(self, scope: Construct, cds_key: str, cds_url: str):
         super().__init__(
             scope,
-            "downloadERA5",
+            self.__class__.__name__,
             timeout=Duration.minutes(15),
             code=DockerImageCode.from_image_asset(
                 "./app/download",
@@ -18,7 +18,7 @@ class DownloadERA5(DockerImageFunction):
             memory_size=4096,
             architecture=Architecture.X86_64,
             environment={"CDSAPI_KEY": cds_key, "CDSAPI_URL": cds_url},
-            function_name="DownloadERA5",
+            function_name=self.__class__.__name__,
         )
 
 
@@ -27,8 +27,8 @@ class DownloadERA5Task(LambdaInvoke):
         self.download_era5 = DownloadERA5(scope, cds_key, cds_url)
         bucket.grant_read_write(self.download_era5)
         super().__init__(
-            self,
-            "era5StackDownloadFile",
+            scope,
+            self.__class__.__name__,
             lambda_function=self.download_era5,  # type: ignore
             result_path="$.DownloadERA5",
             retry_on_service_exceptions=True,

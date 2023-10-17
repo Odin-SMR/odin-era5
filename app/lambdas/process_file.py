@@ -7,7 +7,7 @@ class ProcessFile(Function):
     def __init__(self, scope: Construct, cds_key:str, cds_url:str):
         super().__init__(
             scope,
-            "processFile",
+            self.__class__.__name__,
             runtime=Runtime.PYTHON_3_10,
             code=Code.from_asset("app/process"),
             handler="handler.process_file.lambda_handler",
@@ -15,6 +15,7 @@ class ProcessFile(Function):
                 "CDSAPI_KEY": cds_key,
                 "CDSAPI_URL": cds_url,
             },
+            function_name=self.__class__.__name__,
         )
         self.add_to_role_policy(
             aws_iam.PolicyStatement(

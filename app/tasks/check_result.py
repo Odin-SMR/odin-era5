@@ -9,7 +9,7 @@ class CheckResult(Function):
     def __init__(self, scope: Construct, cds_key: str, cds_url: str):
         super().__init__(
             scope,
-            "checkResult",
+            self.__class__.__name__,
             runtime=Runtime.PYTHON_3_10,
             code=Code.from_asset(
                 "app/checkresult",
@@ -28,6 +28,7 @@ class CheckResult(Function):
                 "CDSAPI_URL": cds_url,
             },
             timeout=Duration.seconds(10),
+            function_name=self.__class__.__name__,
         )
 
 
@@ -36,7 +37,7 @@ class CheckResultTask(LambdaInvoke):
         self.check_result = CheckResult(scope, cds_key, cds_url)
         super().__init__(
             scope,
-            "checkResultTask",
+            self.__class__.__name__,
             lambda_function=self.check_result,  # type: ignore
             payload=TaskInput.from_json_path_at("$.SendRequest.Payload"),
             result_path="$.CheckResult",

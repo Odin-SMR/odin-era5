@@ -11,7 +11,7 @@ class SendRequest(Function):
     def __init__(self, scope: Construct, cds_key: str, cds_url: str) -> None:
         super().__init__(
             scope,
-            "sendRequest",
+            self.__class__.__name__,
             runtime=Runtime.PYTHON_3_10,
             code=Code.from_asset(
                 "app/sendrequest",
@@ -30,6 +30,7 @@ class SendRequest(Function):
                 "CDSAPI_URL": cds_url,
             },
             timeout=Duration.seconds(10),
+            function_name=self.__class__.__name__,
         )
 
 
@@ -37,8 +38,8 @@ class SendRequestTask(LambdaInvoke):
     def __init__(self, scope: Construct, cds_key: str, cds_url: str):
         self.send_request = SendRequest(scope, cds_key, cds_url)
         super().__init__(
-            self,
-            "sendRequestTask",
+            scope,
+            self.__class__.__name__,
             lambda_function=self.send_request,  # type: ignore
             payload=TaskInput.from_object(
                 SendRequestEvent(
