@@ -4,7 +4,7 @@ from constructs import Construct
 
 
 class ProcessFile(Function):
-    def __init__(self, scope: Construct, cds_key:str, cds_url:str):
+    def __init__(self, scope: Construct, cds_key: str, cds_url: str):
         super().__init__(
             scope,
             self.__class__.__name__,
