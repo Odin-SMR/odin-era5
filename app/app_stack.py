@@ -1,19 +1,17 @@
 from aws_cdk import Duration, Stack
 from aws_cdk import aws_events as events
 from aws_cdk import aws_events_targets as targets
-from aws_cdk import aws_lambda as _lambda
 from aws_cdk import aws_s3 as s3
 from aws_cdk import aws_ssm
-from aws_cdk import aws_iam as iam
 from aws_cdk import aws_stepfunctions as sfn
 from aws_cdk.aws_stepfunctions import Condition
-from aws_cdk import aws_stepfunctions_tasks as tasks
 from constructs import Construct
-from app.checkfile.handler.check_file import CheckFileEvent
-from app.stack.CheckFileLambda import CheckFileFunction
-from aws_cdk.aws_lambda import DockerImageFunction, IFunction
 
-from app.sendrequest.handler.send_request import SendRequestEvent
+from .lambdas.process_file import ProcessFile
+from .tasks.check_file import CheckFileTask
+from .tasks.check_result import CheckResultTask
+from .tasks.download_era5 import DownloadERA5Task
+from .tasks.send_request import SendRequestTask
 
 BUCKET = "odin-era5"
 
@@ -34,164 +32,26 @@ class Era5Stack(Stack):
             string_parameter_name="/odin/cdsapi/url",
         )
 
-        download_era5 = _lambda.DockerImageFunction(
+        process_file = ProcessFile(self, cds_key.string_value, cds_url.string_value)
+        rule = events.Rule(
             self,
-            "downloadERA5",
-            timeout=Duration.minutes(15),
-            code=_lambda.DockerImageCode.from_image_asset(
-                "./app/download",
-            ),
-            memory_size=4096,
-            architecture=_lambda.Architecture.X86_64,
-            environment={
-                "CDSAPI_KEY": cds_key.string_value,
-                "CDSAPI_URL": cds_url.string_value,
-            },
+            "Era5ScheduleRule",
+            schedule=events.Schedule.cron(minute="00", hour="15"),
         )
+        rule.add_target(targets.LambdaFunction(process_file))  # type: ignore
 
-        check_file = CheckFileFunction(
-            self,
-            "CheckFile",
-            cds_key.string_value,
-            cds_url.string_value,
-            payload=sfn.TaskInput.from_object(
-                {
-                    "zarr_store": sfn.JsonPath.string_at("$.zarr_store"),
-                }
-            ),
+        # Taskdefinitions
+        send_request_task = SendRequestTask(
+            self, cds_key.string_value, cds_key.string_value
         )
-        send_request = _lambda.Function(
-            self,
-            "sendRequest",
-            runtime=_lambda.Runtime.PYTHON_3_10,
-            code=_lambda.Code.from_asset(
-                "app/sendrequest",
-                bundling={
-                    "image": _lambda.Runtime.PYTHON_3_10.bundling_image,
-                    "command": [
-                        "bash",
-                        "-c",
-                        "pip install -r requirements.txt -t /asset-output && cp -au . /asset-output",
-                    ],
-                },
-            ),
-            handler="handler.send_request.lambda_handler",
-            environment={
-                "CDSAPI_KEY": cds_key.string_value,
-                "CDSAPI_URL": cds_url.string_value,
-            },
-            timeout=Duration.seconds(10),
+        check_result_task = CheckResultTask(
+            self, cds_key.string_value, cds_key.string_value
         )
-        check_result = _lambda.Function(
-            self,
-            "checkResult",
-            runtime=_lambda.Runtime.PYTHON_3_10,
-            code=_lambda.Code.from_asset(
-                "app/checkresult",
-                bundling={
-                    "image": _lambda.Runtime.PYTHON_3_10.bundling_image,
-                    "command": [
-                        "bash",
-                        "-c",
-                        "pip install -r requirements.txt -t /asset-output && cp -au . /asset-output",
-                    ],
-                },
-            ),
-            handler="handler.check_result.lambda_handler",
-            environment={
-                "CDSAPI_KEY": cds_key.string_value,
-                "CDSAPI_URL": cds_url.string_value,
-            },
-            timeout=Duration.seconds(10),
+        check_file_task = CheckFileTask(
+            self, era5_bucket, cds_key.string_value, cds_url.string_value
         )
-        process_file = _lambda.Function(
-            self,
-            "processFile",
-            runtime=_lambda.Runtime.PYTHON_3_10,
-            code=_lambda.Code.from_asset("app/process"),
-            handler="handler.process_file.lambda_handler",
-            environment={
-                "CDSAPI_KEY": cds_key.string_value,
-                "CDSAPI_URL": cds_url.string_value,
-            },
-        )
-        process_file.add_to_role_policy(
-            iam.PolicyStatement(
-                actions=[
-                    "states:ListStateMachines",
-                    "states:StartExecution",
-                ],
-                resources=["*"],
-            ),
-        )
-
-        send_request_task = tasks.LambdaInvoke(
-            self,
-            "sendRequestTask",
-            lambda_function=send_request,
-            payload=sfn.TaskInput.from_object(
-                SendRequestEvent(
-                    date=sfn.JsonPath.string_at("$.date"),
-                    time_list=sfn.JsonPath.list_at("$.time_list"),
-                )
-            ),
-            result_path="$.SendRequest",
-        )
-        check_result_task = tasks.LambdaInvoke(
-            self,
-            "checkResultTask",
-            lambda_function=check_result,
-            payload=sfn.TaskInput.from_json_path_at("$.SendRequest.Payload"),
-            result_path="$.CheckResult",
-        )
-        check_result_task.add_retry(
-            errors=["States.ALL"],
-            max_attempts=3,
-            backoff_rate=2,
-            interval=Duration.minutes(3),
-        )
-        check_file_task = tasks.LambdaInvoke(
-            self,
-            "Era5StackCheckFile",
-            lambda_function=check_file,
-            payload=sfn.TaskInput.from_object(
-                CheckFileEvent(zarr_store=sfn.JsonPath.string_at("$.zarr_store"))
-            ),
-            result_path="$.CheckFile",
-            retry_on_service_exceptions=True,
-        )
-
-        download_era5_task = tasks.LambdaInvoke(
-            self,
-            "era5StackDownloadFile",
-            lambda_function=download_era5,
-            result_path="$.DownloadERA5",
-            retry_on_service_exceptions=True,
-            payload=sfn.TaskInput.from_object(
-                {
-                    "zarr_store": sfn.JsonPath.string_at("$.zarr_store"),
-                    "reply": sfn.JsonPath.object_at("$.CheckResult.Payload"),
-                }
-            ),
-        )
-
-        send_request_task.add_retry(
-            errors=["CDSAPITooManyRequests"],
-            max_attempts=3,
-            backoff_rate=2,
-            interval=Duration.minutes(15),
-        )
-        send_request_task.add_retry(
-            errors=["CDSAPINotAvailableYet"],
-            max_attempts=3,
-            backoff_rate=1,
-            interval=Duration.days(1),
-        )
-        send_request_task.add_retry(
-            errors=["States.ALL"],
-            max_attempts=3,
-            backoff_rate=2,
-            interval=Duration.minutes(30),
+        download_era5_task = DownloadERA5Task(
+            self, era5_bucket, cds_key.string_value, cds_url.string_value
         )
 
         # Logic flow & State
@@ -257,15 +117,3 @@ class Era5Stack(Stack):
             definition=check_file_task,
             state_machine_name="Era5StateMachine",
         )
-
-        # Define the CloudWatch event rule
-        rule = events.Rule(
-            self,
-            "Era5ScheduleRule",
-            schedule=events.Schedule.cron(minute="00", hour="15"),
-        )
-
-        # Add the Lambda function as a target of the rule
-        rule.add_target(targets.LambdaFunction(process_file))
-        era5_bucket.grant_read_write(download_era5)
-        era5_bucket.grant_read(check_file)
