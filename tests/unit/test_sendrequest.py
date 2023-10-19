@@ -1,5 +1,3 @@
-from datetime import datetime
-
 from pytest import raises
 
 from app.sendrequest.handler.send_request import (
