@@ -1,4 +1,3 @@
-import datetime
 import tempfile
 from typing import Any, Mapping, TypedDict
 
@@ -23,6 +22,6 @@ def lambda_handler(event: DownloadEvent, context):
     with tempfile.NamedTemporaryFile() as f:
         result.download(target=f.name)
         ds = xarray.open_dataset(f.name)
-        ds.to_zarr(store=store)
+        ds.to_zarr(store=store, mode="w")
         f.close()
     return {"StatusCode": 200}
