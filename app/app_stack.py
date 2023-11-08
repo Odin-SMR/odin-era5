@@ -42,10 +42,10 @@ class Era5Stack(Stack):
 
         # Taskdefinitions
         send_request_task = SendRequestTask(
-            self, cds_key.string_value, cds_key.string_value
+            self, cds_key.string_value, cds_url.string_value
         )
         check_result_task = CheckResultTask(
-            self, cds_key.string_value, cds_key.string_value
+            self, cds_key.string_value, cds_url.string_value
         )
         check_file_task = CheckFileTask(
             self, era5_bucket, cds_key.string_value, cds_url.string_value

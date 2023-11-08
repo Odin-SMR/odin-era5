@@ -1,3 +1,4 @@
+from datetime import datetime
 from pytest import raises
 
 from app.sendrequest.handler.send_request import (
@@ -6,6 +7,7 @@ from app.sendrequest.handler.send_request import (
     SendRequestEvent,
     lambda_handler,
 )
+from app.sendrequest.handler.settings import settings
 
 
 def test_lambda_handler_cdsapi_not_available_yet(mocker):
@@ -35,3 +37,11 @@ def test_lambda_handler_returns_some_data(mocker):
     )
     send_request_mock.return_value = {}
     assert lambda_handler(event, None) == {}
+
+
+def test_sendrequest_settings():
+    config = settings([datetime(2023, 11, 8, 00, 00), datetime(2023, 11, 8, 12, 00)])
+    assert "date" in config
+    assert config["date"] == ["2023-11-08"]
+    assert "time" in config
+    assert config["time"] == ["00:00", "12:00"]

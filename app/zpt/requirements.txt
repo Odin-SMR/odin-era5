@@ -1,5 +1,5 @@
 certifi==2023.7.22
-cftime==1.6.2
-netcdf4==1.6.4
-numpy==1.25.2
-scipy==1.11.2
+cftime==1.6.3
+netcdf4==1.6.5
+numpy==1.26.1
+scipy==1.11.3
