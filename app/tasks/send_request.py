@@ -29,7 +29,7 @@ class SendRequest(Function):
                 "CDSAPI_KEY": cds_key,
                 "CDSAPI_URL": cds_url,
             },
-            timeout=Duration.seconds(10),
+            timeout=Duration.seconds(30),
             function_name=self.__class__.__name__,
         )
 

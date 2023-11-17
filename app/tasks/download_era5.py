@@ -15,7 +15,7 @@ class DownloadERA5(DockerImageFunction):
             code=DockerImageCode.from_image_asset(
                 "./app/download",
             ),
-            memory_size=4096,
+            memory_size=1536,
             architecture=Architecture.X86_64,
             environment={"CDSAPI_KEY": cds_key, "CDSAPI_URL": cds_url},
             function_name=self.__class__.__name__,
