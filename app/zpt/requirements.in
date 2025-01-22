@@ -2,3 +2,4 @@
 numpy
 scipy
 netCDF4
+nrlmsise00
