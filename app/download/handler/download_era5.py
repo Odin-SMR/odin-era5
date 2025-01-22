@@ -1,8 +1,8 @@
 import tempfile
 from typing import Any, Mapping, TypedDict
 
-import cdsapi
-import s3fs
+import cdsapi  # type: ignore
+import s3fs  # type: ignore
 import xarray
 
 BUCKET = "odin-era5"

@@ -4,7 +4,7 @@ pytest
 pytest-mock
 pip-tools
 mypy
-black
+black[jupyter]
 boto3-stubs[essential, stepfunctions]
 types-requests
 ipykernel
