@@ -4,8 +4,9 @@ from typing import Any, Dict, Iterable, List
 PRODUCT = "reanalysis-era5-pressure-levels"
 
 SETTINGS = {
-    "product_type": "reanalysis",
-    "format": "netcdf",
+    "product_type": ["reanalysis"],
+    "data_format": "netcdf",
+    "download_format": "unarchived",
     "grid": [0.75, 0.75],
     "pressure_level": [
         "1",
@@ -46,7 +47,7 @@ SETTINGS = {
         "975",
         "1000",
     ],
-    "variable": ["temperature", "geopotential"],
+    "variable": ["geopotential", "temperature"],
 }
 
 
