@@ -10,11 +10,11 @@ class CheckResult(Function):
         super().__init__(
             scope,
             self.__class__.__name__,
-            runtime=Runtime.PYTHON_3_10,
+            runtime=Runtime.PYTHON_3_12,
             code=Code.from_asset(
                 "app/checkresult",
                 bundling={
-                    "image": Runtime.PYTHON_3_10.bundling_image,
+                    "image": Runtime.PYTHON_3_12.bundling_image,
                     "command": [
                         "bash",
                         "-c",
