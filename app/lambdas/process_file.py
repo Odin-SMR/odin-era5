@@ -8,7 +8,7 @@ class ProcessFile(Function):
         super().__init__(
             scope,
             self.__class__.__name__,
-            runtime=Runtime.PYTHON_3_10,
+            runtime=Runtime.PYTHON_3_12,
             code=Code.from_asset("app/process"),
             handler="handler.process_file.lambda_handler",
             environment={

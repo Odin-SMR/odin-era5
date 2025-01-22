@@ -1,3 +1,2 @@
--c ${CONSTRAINTS}
 aws-cdk-lib
 GitPython

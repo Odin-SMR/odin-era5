@@ -15,7 +15,7 @@ PIP_COMPILE := pip-compile -q --no-header --resolver=backtracking
 CONSTRAINTS_ENV := $(addsuffix .txt, $(basename $(DEVELOPER_ENV)))
 MKFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 CURRENT_DIR := $(patsubst %/,%,$(dir $(MKFILE_PATH)))
-SOURCES := $(shell find . -name '*.in' -not -path '*/cdk.out/*' -not -path '*/.tox/*' -not -name $(DEVELOPER_ENV))
+SOURCES := $(shell find . -name 'requirements*.in' -not -path '*/cdk.out/*' -not -name $(DEVELOPER_ENV))
 
 help:
 	@sed -rn 's/^## ?//;T;p' $(MAKEFILE_LIST)
@@ -30,6 +30,10 @@ all: $(CONSTRAINTS_ENV) $(addsuffix .txt, $(basename $(SOURCES)))
 
 clean:
 	rm -rf $(CONSTRAINTS_ENV) $(addsuffix .txt, $(basename $(SOURCES)))
+
+protoc:
+	python3 -m grpc_tools.protoc -I . --python_out=. --grpc_python_out=. ./physguide/vesseldata/vesseldata.proto --mypy_out=.
+	python3 -m grpc_tools.protoc -I . --python_out=. --grpc_python_out=. ./physguide/forecast/forecast.proto --mypy_out=.
 
 update: clean all
 

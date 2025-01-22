@@ -14,6 +14,8 @@ class DownloadERA5(DockerImageFunction):
             timeout=Duration.minutes(15),
             code=DockerImageCode.from_image_asset(
                 "./app/download",
+                asset_name=self.__class__.__name__,
+                extra_hash=self.__class__.__name__,
             ),
             memory_size=1536,
             architecture=Architecture.X86_64,
