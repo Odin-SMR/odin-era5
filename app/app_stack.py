@@ -94,6 +94,10 @@ class Era5Stack(Stack):
             sfn.Condition.string_equals("$.CheckResult.Payload.state", "running"),
             wait_state,
         )
+        check_result_choice_state.when(
+            sfn.Condition.string_equals("$.CheckResult.Payload.state", "accepted"),
+            wait_state,
+        )
         download_file_fail_state = sfn.Fail(
             self, "downloadFileFail", comment="Something went wrong while downloading!"
         )
