@@ -2,4 +2,4 @@ cdsapi
 s3fs
 xarray
 netCDF4
-zarr==2.18.4
+zarr
